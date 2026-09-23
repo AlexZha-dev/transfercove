@@ -32,19 +32,22 @@ class MainPage:
         self.nav_labels: list[ft.Control] = []
         self.nav_buttons: dict[str, ft.TextButton] = {}
         self.sidebar = self.build_sidebar()
+        self.mobile_nav_buttons: list[ft.IconButton] = [
+            ft.IconButton(
+                icon=ft.Icons.GRID_VIEW_ROUNDED,
+                tooltip="Dashboard",
+                on_click=self.show_home,
+            ),
+            ft.IconButton(
+                icon=ft.Icons.TUNE_ROUNDED,
+                tooltip="Settings",
+                on_click=self.show_settings,
+            ),
+        ]
+        mobile_nav_controls: list[ft.Control] = []
+        mobile_nav_controls.extend(self.mobile_nav_buttons)
         self.mobile_nav = ft.Row(
-            controls=[
-                ft.IconButton(
-                    icon=ft.Icons.GRID_VIEW_ROUNDED,
-                    tooltip="Dashboard",
-                    on_click=self.show_home,
-                ),
-                ft.IconButton(
-                    icon=ft.Icons.TUNE_ROUNDED,
-                    tooltip="Settings",
-                    on_click=self.show_settings,
-                ),
-            ],
+            controls=mobile_nav_controls,
             spacing=0,
             visible=False,
         )
@@ -198,7 +201,7 @@ class MainPage:
                 shape=ft.RoundedRectangleBorder(radius=12),
                 alignment=ft.Alignment.CENTER_LEFT,
             )
-        for index, button in enumerate(self.mobile_nav.controls):
+        for index, button in enumerate(self.mobile_nav_buttons):
             selected = (index == 0) == (self.active_route == "home")
             button.icon_color = COLORS["primary"] if selected else COLORS["muted"]
             button.bgcolor = (
@@ -238,7 +241,10 @@ class MainPage:
         self.mount_view()
 
     def mount_view(self) -> None:
-        self.content.content = self.current_view.root
+        current_view = self.current_view
+        if current_view is None:
+            return
+        self.content.content = current_view.root
         self.content.gradient = ft.LinearGradient(
             begin=ft.Alignment.TOP_RIGHT,
             end=ft.Alignment.BOTTOM_LEFT,
