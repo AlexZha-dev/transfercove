@@ -12,12 +12,24 @@ dependencies = [
     "pydantic-settings (>=2.15.0,<3.0.0)",
     "uvicorn (>=0.53.0,<0.54.0)",
     "sqlalchemy (>=2.0.54,<3.0.0)",
+    "greenlet (>=3.5.0,<4.0.0)",
     "alembic (>=1.20.0,<2.0.0)",
     "aiosqlite (>=0.22.1,<0.23.0)",
-    "python-multipart (>=0.0.32,<0.0.33)"
+    "python-multipart (>=0.0.32,<0.0.33)",
+    "flet (>=0.86.0,<1.0.0)"
 ]
 
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+packages = [{ include = "app" }]
+
+[tool.flet]
+product = "WiFi Transmitter"
+
+[tool.flet.app]
+module = "app/flet_main.py"
+exclude = [".git", ".venv", "build", "dist"]
