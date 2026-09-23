@@ -1,13 +1,46 @@
+from time import perf_counter
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter
-from starlette.datastructures import UploadFile
+from fastapi import APIRouter, Depends, Request, UploadFile
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.db import get_session
+from app.core.settings import settings
+from app.services.file_service import FileService
 
 files_router = APIRouter(prefix="/files", tags=["files"])
 
+SessionDependency = Annotated[AsyncSession, Depends(get_session)]
 
 @files_router.post("")
-async def upload_file(file: UploadFile): ...
+async def upload_file(
+    file: UploadFile,
+    session: SessionDependency,
+    request: Request,
+):
+    service = FileService(
+        session=session,
+        storage_dir=settings.transmitter.storage_dir,
+    )
+
+    record = await service.upload(file)
+
+    duration = max(perf_counter() - request.state.started_at, 0.000001)
+    speed = record.size_bytes / duration
+
+    return {
+        "id": record.id,
+        "filename": record.original_name,
+        "size": record.size_bytes,
+        "content_type": record.content_type,
+        "created_at": record.created_at,
+        "upload": {
+            "duration_seconds": round(duration, 3),
+            "average_speed_bytes_per_second": round(speed, 2),
+            "remaining_seconds": 0,
+        },
+    }
 
 
 @files_router.get("")
