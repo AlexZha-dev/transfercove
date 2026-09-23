@@ -1,3 +1,4 @@
+import asyncio
 from pathlib import Path
 
 import flet as ft
@@ -24,8 +25,6 @@ class SettingsPage:
         self.controller = controller
         self.go_back = go_back
         self.page = page
-        self.directory_picker = ft.FilePicker()
-        self.page.overlay.append(self.directory_picker)
 
         settings = controller.settings
 
@@ -163,8 +162,13 @@ class SettingsPage:
                                     self.storage_path,
                                     ft.IconButton(
                                         icon=ft.Icons.FOLDER_OPEN,
-                                        tooltip="Choose storage directory",
+                                        tooltip=(
+                                            "Directory picker unavailable in web mode"
+                                            if self.page.web
+                                            else "Choose storage directory"
+                                        ),
                                         on_click=self.choose_directory,
+                                        disabled=self.page.web,
                                     ),
                                 ]
                             ),
@@ -269,18 +273,50 @@ class SettingsPage:
         self.page.update()
 
     async def choose_directory(self, _):
+        if self.page.web:
+            self.message.value = (
+                "Directory picker is available only in the desktop app. "
+                "Enter the path manually."
+            )
+            self.message.color = COLORS["warning"]
+            self.page.update()
+            return
+
         current_path = Path(self.storage_path.value or ".").expanduser()
         initial_directory = current_path if current_path.is_dir() else current_path.parent
 
-        selected_path = await self.directory_picker.get_directory_path(
-            dialog_title="Select storage directory",
-            initial_directory=str(initial_directory.resolve()),
+        selected_path = await asyncio.to_thread(
+            self._select_directory,
+            initial_directory.resolve(),
         )
 
         if selected_path:
-            self.storage_path.value = selected_path
+            self.storage_path.value = str(selected_path)
             self.page.update()
 
+    @staticmethod
+    def _select_directory(initial_directory: Path) -> Path | None:
+        try:
+            import tkinter as tk
+            from tkinter import filedialog
+        except ImportError:
+            return None
+
+        try:
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes("-topmost", True)
+            try:
+                selected_path = filedialog.askdirectory(
+                    title="Select storage directory",
+                    initialdir=str(initial_directory),
+                )
+            finally:
+                root.destroy()
+        except (OSError, RuntimeError, tk.TclError):
+            return None
+
+        return Path(selected_path) if selected_path else None
+
     def dispose(self) -> None:
-        if self.directory_picker in self.page.overlay:
-            self.page.overlay.remove(self.directory_picker)
+        """Release page-specific resources before switching views."""
