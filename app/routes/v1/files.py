@@ -5,11 +5,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Request, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.db import get_session
-from app.core.settings import settings
+from app.core.dependencies import get_session
 from app.services.file_service import FileService
 
 files_router = APIRouter(prefix="/files", tags=["files"])
+
 
 SessionDependency = Annotated[AsyncSession, Depends(get_session)]
 
@@ -21,7 +21,7 @@ async def upload_file(
 ):
     service = FileService(
         session=session,
-        storage_dir=settings.transmitter.storage_dir,
+        storage_dir=request.app.state.settings.transmitter.storage_dir,
     )
 
     record = await service.upload(file)

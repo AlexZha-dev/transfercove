@@ -6,7 +6,7 @@ if __name__ == "__main__":
     server = settings.uvicorn
 
     uvicorn.run(
-        "app.main:app",
+        "app.web_main:app",
         host=server.host,
         port=server.port,
         log_level=server.log_level,
