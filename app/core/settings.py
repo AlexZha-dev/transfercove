@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -17,7 +19,8 @@ class UvicornConfig(BaseModel):
 
 
 class TransmitterSettings(BaseModel):
-    pass
+    storage_dir: Path = Path(".data/files")
+    database_url: str = "sqlite+aiosqlite:///./.data/files.db"
 
 
 class Settings(BaseSettings):
