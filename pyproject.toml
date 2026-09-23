@@ -31,5 +31,5 @@ packages = [{ include = "app" }]
 product = "WiFi Transmitter"
 
 [tool.flet.app]
-module = "app/flet_main.py"
+module = "app/desktop_main.py"
 exclude = [".git", ".venv", "build", "dist"]
