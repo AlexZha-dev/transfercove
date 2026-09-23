@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#07100c">
+    <meta name="description" content="WiFi Transmitter is a local-first file transfer app for sending files over your own network.">
+    <meta property="og:title" content="WiFi Transmitter — your files, your network">
+    <meta property="og:description" content="A calm, private way to move files between devices on the same Wi-Fi network.">
+    <meta property="og:type" content="website">
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <link rel="preload" href="assets/icon.svg" as="image" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+    <script defer src="script.js"></script>
+    <title>WiFi Transmitter — your files, your network</title>
+  </head>
+  <body>
+    <div class="site-shell">
+      <header class="topbar" id="top">
+        <a class="brand" href="#top" aria-label="WiFi Transmitter home">
+          <span class="brand-mark"><img src="assets/icon.svg" alt=""></span>
+          <span>WiFi <strong>Transmitter</strong></span>
+        </a>
+        <nav class="nav-links" aria-label="Primary navigation">
+          <a href="#features">Features</a>
+          <a href="#how-it-works">How it works</a>
+          <a href="#preview">Preview</a>
+          <a href="#download">Download</a>
+        </nav>
+        <a class="topbar-link" href="https://github.com/AlexZha-dev/WIFI-trancmitor" target="_blank" rel="noreferrer">
+          View on GitHub <span aria-hidden="true">↗</span>
+        </a>
+      </header>
+
+      <main>
+        <section class="hero page-width" aria-labelledby="hero-title">
+          <div class="hero-copy">
+            <div class="eyebrow"><span class="pulse-dot"></span> Local-first file transfer <span class="eyebrow-divider">/</span> v0.2.0</div>
+            <h1 id="hero-title">Your files.<br><span>Your network.</span></h1>
+            <p class="hero-lede">WiFi Transmitter moves files between devices over the Wi-Fi you already trust. Control the receiver from a focused desktop app, then send from any browser.</p>
+            <div class="hero-actions">
+              <a class="button button-primary" href="https://github.com/AlexZha-dev/WIFI-trancmitor/releases" target="_blank" rel="noreferrer">
+                <span>Open release page</span><span class="button-arrow" aria-hidden="true">↗</span>
+              </a>
+              <a class="button button-quiet" href="#how-it-works">See how it works <span aria-hidden="true">↓</span></a>
+            </div>
+            <div class="hero-note"><span class="note-check">✓</span> No cloud account <span class="note-separator">·</span> No subscription <span class="note-separator">·</span> Your network</div>
+          </div>
+
+          <div class="hero-visual" aria-label="Interactive upload demonstration">
+            <div class="glow-orbit orbit-one"></div>
+            <div class="glow-orbit orbit-two"></div>
+            <div class="demo-window">
+              <div class="window-bar">
+                <div class="window-controls" aria-hidden="true"><span></span><span></span><span></span></div>
+                <span class="window-title">WiFi Transmitter <span>/ upload</span></span>
+                <span class="window-status"><i></i> Online</span>
+              </div>
+              <div class="demo-body">
+                <div class="demo-heading">
+                  <div>
+                    <span class="demo-kicker">SEND FROM BROWSER</span>
+                    <h2>Drop files here</h2>
+                    <p>Everything stays on your local network.</p>
+                  </div>
+                  <span class="demo-upload-icon" aria-hidden="true">↑</span>
+                </div>
+                <form class="demo-drop" id="demo-drop" aria-label="Demo file upload">
+                  <input id="demo-input" type="file" multiple>
+                  <span class="drop-ring" aria-hidden="true">↑</span>
+                  <strong>Drag &amp; drop files</strong>
+                  <span>or <button type="button" id="choose-files">choose from device</button></span>
+                  <small>Demo only · nothing is uploaded</small>
+                </form>
+                <div class="demo-queue-heading"><span>TRANSFER QUEUE</span><span id="demo-count">2 files · 18.4 MB</span></div>
+                <div class="demo-queue" id="demo-queue">
+                  <div class="queue-row" data-demo-file="design-notes.pdf" data-demo-size="8.2 MB">
+                    <span class="queue-file-icon">↥</span><span class="queue-file-copy"><strong>design-notes.pdf</strong><small>8.2 MB · <em>Ready to send</em></small><span class="mini-progress"><i style="width: 0%"></i></span></span><b class="queue-percent">0%</b>
+                  </div>
+                  <div class="queue-row" data-demo-file="photo-set.zip" data-demo-size="10.2 MB">
+                    <span class="queue-file-icon">↥</span><span class="queue-file-copy"><strong>photo-set.zip</strong><small>10.2 MB · <em>Ready to send</em></small><span class="mini-progress"><i style="width: 0%"></i></span></span><b class="queue-percent">0%</b>
+                  </div>
+                </div>
+                <div class="demo-actions"><span id="demo-status" aria-live="polite">Ready when you are</span><button class="button button-demo" id="demo-start" type="button"><span>Simulate transfer</span><span aria-hidden="true">→</span></button></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="signal-strip page-width" aria-label="Product principles">
+          <div><span class="strip-icon">⌁</span><span><strong>Private by default</strong><small>Files never leave your network.</small></span></div>
+          <div><span class="strip-icon">◌</span><span><strong>Simple to start</strong><small>Run it, open a browser, send.</small></span></div>
+          <div><span class="strip-icon">↯</span><span><strong>Made for real files</strong><small>Progress you can actually see.</small></span></div>
+        </section>
+
+        <section class="content-section page-width" id="features" aria-labelledby="features-title">
+          <div class="section-intro"><span class="section-number">01</span><div><span class="eyebrow">The useful part</span><h2 id="features-title">A small tool with a clear job.</h2></div><p>WiFi Transmitter keeps the hand-off between your devices visible, local, and uncomplicated.</p></div>
+          <div class="feature-grid">
+            <article class="feature-card feature-card-large"><span class="feature-index">01</span><span class="feature-icon icon-desktop">▣</span><h3>A calm desktop control center</h3><p>Start or stop the receiver, check the address, and choose where incoming files should land.</p><a href="#preview">Explore the interface <span aria-hidden="true">↗</span></a><div class="feature-illustration desktop-illustration"><span class="illustration-sidebar"></span><span class="illustration-line line-one"></span><span class="illustration-line line-two"></span><span class="illustration-card"></span><span class="illustration-toggle"></span></div></article>
+            <article class="feature-card"><span class="feature-index">02</span><span class="feature-icon">↑</span><h3>Any browser can send</h3><p>No companion app on the phone or second computer. Open a local link and drop files in.</p><div class="feature-stat"><strong>0</strong><span>extra apps<br>to install</span></div></article>
+            <article class="feature-card"><span class="feature-index">03</span><span class="feature-icon">◉</span><h3>Know what is happening</h3><p>Per-file progress, total speed, and clear states make every transfer easy to follow.</p><div class="meter-row"><span>transfer clarity</span><span>100%</span></div><div class="meter"><i></i></div></article>
+          </div>
+        </section>
+
+        <section class="content-section how-section page-width" id="how-it-works" aria-labelledby="how-title">
+          <div class="section-intro"><span class="section-number">02</span><div><span class="eyebrow">Three quiet steps</span><h2 id="how-title">From desktop to done.</h2></div><p>Designed for the moment when you just need a file on the other device — without handing it to a third party.</p></div>
+          <div class="steps-grid">
+            <article class="step-card"><span class="step-number">01</span><h3>Start the receiver</h3><p>Launch WiFi Transmitter on the computer that should receive the files.</p><span class="step-line"></span><span class="step-caption">Desktop app</span></article>
+            <article class="step-card"><span class="step-number">02</span><h3>Open the local link</h3><p>Use the shown address on a phone, tablet, or another computer on the same Wi-Fi.</p><span class="step-line"></span><span class="step-caption">Any modern browser</span></article>
+            <article class="step-card"><span class="step-number">03</span><h3>Send and watch</h3><p>Drop files, start the queue, and see exactly when each transfer finishes.</p><span class="step-line"></span><span class="step-caption">Saved on the receiver</span></article>
+          </div>
+        </section>
+
+        <section class="preview-section page-width" id="preview" aria-labelledby="preview-title">
+          <div class="preview-heading"><div><span class="eyebrow">A closer look</span><h2 id="preview-title">One visual language.<br><span>Two interfaces.</span></h2></div><p>Dark green surfaces, bright status signals, and enough breathing room to keep the important bits obvious.</p></div>
+          <div class="screenshots">
+            <a class="screenshot screenshot-main" href="docs/images/dashboard.png"><img src="docs/images/dashboard.png" alt="WiFi Transmitter desktop dashboard"></a>
+            <a class="screenshot" href="docs/images/upload.png"><img src="docs/images/upload.png" alt="WiFi Transmitter browser upload page"></a>
+            <a class="screenshot screenshot-mobile" href="docs/images/upload-mobile.png"><img src="docs/images/upload-mobile.png" alt="WiFi Transmitter upload page on a mobile screen"></a>
+          </div>
+        </section>
+
+        <section class="download-section page-width" id="download" aria-labelledby="download-title">
+          <div class="download-card">
+            <div class="download-copy"><span class="eyebrow">Take it with you</span><h2 id="download-title">A better hand-off is<br><span>almost ready.</span></h2><p>Version 0.2.0 is the first polished release milestone. The GitHub release page is ready for the downloadable build as soon as it is published.</p><div class="release-meta"><span class="release-dot"></span><strong>v0.2.0</strong><span>Release coming soon</span></div></div>
+            <div class="download-action"><a class="button button-primary button-wide" href="https://github.com/AlexZha-dev/WIFI-trancmitor/releases" target="_blank" rel="noreferrer">Open GitHub releases <span aria-hidden="true">↗</span></a><span class="download-hint">The download link will stay the same when the build lands.</span></div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer page-width"><a class="brand footer-brand" href="#top"><span class="brand-mark"><img src="assets/icon.svg" alt=""></span><span>WiFi <strong>Transmitter</strong></span></a><span class="footer-copy">Your files. Your network.</span><div class="footer-links"><a href="https://github.com/AlexZha-dev/WIFI-trancmitor" target="_blank" rel="noreferrer">GitHub <span aria-hidden="true">↗</span></a><a href="#top">Back to top ↑</a></div><span class="footer-year">© <span id="year"></span></span></footer>
+    </div>
+    <noscript><div class="noscript-note">This page is fully readable without JavaScript. The upload panel is an interactive visual demo only.</div></noscript>
+  </body>
+</html>
