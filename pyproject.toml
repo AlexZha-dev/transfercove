@@ -1,7 +1,7 @@
 [project]
 name = "wifi-trancmitor"
 version = "0.1.0"
-description = ""
+description = "Desktop-controlled file transfers over your local network"
 authors = [
     {name = "AlexZha-dev",email = "oleksandr.zhabchenko.work@outlook.com"}
 ]
@@ -26,10 +26,12 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 packages = [{ include = "app" }]
+include = [{ path = "assets", format = ["sdist", "wheel"] }]
 
 [tool.flet]
 product = "WiFi Transmitter"
+icon_background = "#07100C"
 
 [tool.flet.app]
-module = "app/desktop_main.py"
-exclude = [".git", ".venv", "build", "dist"]
+module = "main"
+exclude = [".git", ".venv", "venv", ".env", ".data", ".flet-data", ".ruff_cache", "build", "dist", "docs", "tools"]
