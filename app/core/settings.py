@@ -1,7 +1,18 @@
+import os
 from pathlib import Path
 
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def resolve_storage_path(path: Path) -> Path:
+    path = path.expanduser()
+    if path.is_absolute():
+        return path
+
+    app_data = os.getenv("FLET_APP_STORAGE_DATA")
+    base_dir = Path(app_data) if app_data else Path.cwd()
+    return (base_dir / path).resolve()
 
 
 class AppConfig(BaseModel):
@@ -42,6 +53,11 @@ class Settings(BaseSettings):
         env_nested_delimiter="__",
         extra="ignore",
     )
+
+    def model_post_init(self, __context: object) -> None:
+        self.transmitter.storage_dir = resolve_storage_path(
+            self.transmitter.storage_dir
+        )
 
 
 settings: Settings = Settings()

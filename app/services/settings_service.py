@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from app.core.db import Database
 from app.core.settings import Settings
 from app.models.application_settings import ApplicationSettingsRecord
@@ -19,6 +21,12 @@ class SettingsService:
                 record = ApplicationSettingsRecord.from_settings(fallback)
                 session.add(record)
                 return fallback
+
+            if (
+                not Path(record.storage_dir).is_absolute()
+                and fallback.transmitter.storage_dir.is_absolute()
+            ):
+                record.storage_dir = str(fallback.transmitter.storage_dir)
 
             return record.to_settings()
 
