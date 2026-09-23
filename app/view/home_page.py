@@ -1,7 +1,10 @@
+import webbrowser
+
 import flet as ft
 
 from app.controller.controller import AppController
 from app.core.theme import COLORS, panel, section_title
+from app.server.manager import ServerState
 
 
 class HomePage:
@@ -17,6 +20,12 @@ class HomePage:
             content="Start server",
             icon=ft.Icons.PLAY_ARROW,
             on_click=self.toggle_server,
+        )
+        self.open_upload_button = ft.Button(
+            content="Open upload page",
+            icon=ft.Icons.OPEN_IN_BROWSER,
+            on_click=self.open_upload_page,
+            disabled=True,
         )
 
         self.root = ft.Column(
@@ -39,7 +48,7 @@ class HomePage:
                                 controls=[
                                     section_title(
                                         "Server status",
-                                        "FastAPI is currently mocked",
+                                        "FastAPI is managed by the desktop application",
                                     ),
                                     self.status,
                                     ft.Row(
@@ -91,13 +100,9 @@ class HomePage:
                         controls=[
                             section_title(
                                 "Quick actions",
-                                "These actions are placeholders until FastAPI is connected",
+                                "Available when the server is running",
                             ),
-                            ft.Button(
-                                content="Open upload page",
-                                icon=ft.Icons.OPEN_IN_BROWSER,
-                                disabled=True,
-                            ),
+                            self.open_upload_button,
                         ],
                         spacing=16,
                     ),
@@ -110,14 +115,19 @@ class HomePage:
 
         self.refresh()
 
-    def toggle_server(self, _):
+    async def toggle_server(self, _):
         if not self.controller.initialized:
             return
 
         if self.controller.server_running:
-            self.controller.stop_server()
+            await self.controller.stop_server()
         else:
-            self.controller.start_server()
+            started = await self.controller.start_server()
+            if started and self.controller.settings.desktop.open_browser:
+                webbrowser.open(self.controller.server_url)
+
+    def open_upload_page(self, _):
+        webbrowser.open(self.controller.server_url)
 
     @staticmethod
     def metric(title: str, value: str, icon) -> ft.Container:
@@ -146,11 +156,29 @@ class HomePage:
         self.host_value.value = self.controller.settings.uvicorn.host
         self.storage_value.value = str(self.controller.settings.transmitter.storage_dir)
 
-        if self.controller.server_running:
-            self.status.value = "Running (mock)"
+        state = self.controller.server_state
+
+        if state == ServerState.RUNNING:
+            self.status.value = "Running"
             self.status.color = COLORS["primary"]
             self.server_button.content = "Stop server"
             self.server_button.icon = ft.Icons.STOP
+        elif state == ServerState.STARTING:
+            self.status.value = "Starting..."
+            self.status.color = COLORS["warning"]
+            self.server_button.content = "Starting..."
+            self.server_button.icon = ft.Icons.HOURGLASS_TOP
+        elif state == ServerState.STOPPING:
+            self.status.value = "Stopping..."
+            self.status.color = COLORS["warning"]
+            self.server_button.content = "Stopping..."
+            self.server_button.icon = ft.Icons.HOURGLASS_TOP
+        elif state == ServerState.ERROR:
+            error = self.controller.last_error
+            self.status.value = f"Error: {error}" if error else "Error"
+            self.status.color = COLORS["danger"]
+            self.server_button.content = "Start server"
+            self.server_button.icon = ft.Icons.PLAY_ARROW
         else:
             self.status.value = (
                 "Loading settings..." if not self.controller.initialized else "Stopped"
@@ -163,5 +191,9 @@ class HomePage:
             self.server_button.content = "Start server"
             self.server_button.icon = ft.Icons.PLAY_ARROW
 
-        self.server_button.disabled = not self.controller.initialized
+        self.server_button.disabled = not self.controller.initialized or state in {
+            ServerState.STARTING,
+            ServerState.STOPPING,
+        }
+        self.open_upload_button.disabled = state != ServerState.RUNNING
         self.url.value = self.controller.server_url

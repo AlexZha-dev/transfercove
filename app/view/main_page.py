@@ -1,3 +1,5 @@
+import webbrowser
+
 import flet as ft
 
 from app.controller.controller import AppController
@@ -34,6 +36,11 @@ class MainPage:
             )
         )
         self.show_home()
+
+        if self.controller.settings.desktop.auto_start:
+            started = await self.controller.start_server()
+            if started and self.controller.settings.desktop.open_browser:
+                webbrowser.open(self.controller.server_url)
 
     @property
     def sidebar(self) -> ft.Container:

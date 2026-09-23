@@ -249,9 +249,15 @@ class SettingsPage:
                 ),
             )
 
-            await self.controller.save_settings(settings)
-            self.message.value = "Settings saved"
-            self.message.color = COLORS["primary"]
+            server_started = await self.controller.save_settings(settings)
+            self.message.value = (
+                "Settings saved"
+                if server_started
+                else "Settings saved, but the server did not start"
+            )
+            self.message.color = (
+                COLORS["primary"] if server_started else COLORS["danger"]
+            )
 
         except (ValueError, ValidationError) as error:
             self.message.value = f"Invalid settings: {error}"
