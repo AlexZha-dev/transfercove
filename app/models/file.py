@@ -27,7 +27,10 @@ class FileRecord(Base):
         unique=True,
     )
 
-    content_type: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    content_type: Mapped[str] = mapped_column(
+        String(255),
+        nullable=True,
+    )
 
     size_bytes: Mapped[int] = mapped_column(
         nullable=False,
