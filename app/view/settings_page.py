@@ -24,6 +24,8 @@ class SettingsPage:
         self.controller = controller
         self.go_back = go_back
         self.page = page
+        self.directory_picker = ft.FilePicker()
+        self.page.overlay.append(self.directory_picker)
 
         settings = controller.settings
 
@@ -161,7 +163,8 @@ class SettingsPage:
                                     self.storage_path,
                                     ft.IconButton(
                                         icon=ft.Icons.FOLDER_OPEN,
-                                        tooltip="Choose directory (coming soon)",
+                                        tooltip="Choose storage directory",
+                                        on_click=self.choose_directory,
                                     ),
                                 ]
                             ),
@@ -264,3 +267,20 @@ class SettingsPage:
             self.message.color = COLORS["danger"]
 
         self.page.update()
+
+    async def choose_directory(self, _):
+        current_path = Path(self.storage_path.value or ".").expanduser()
+        initial_directory = current_path if current_path.is_dir() else current_path.parent
+
+        selected_path = await self.directory_picker.get_directory_path(
+            dialog_title="Select storage directory",
+            initial_directory=str(initial_directory.resolve()),
+        )
+
+        if selected_path:
+            self.storage_path.value = selected_path
+            self.page.update()
+
+    def dispose(self) -> None:
+        if self.directory_picker in self.page.overlay:
+            self.page.overlay.remove(self.directory_picker)

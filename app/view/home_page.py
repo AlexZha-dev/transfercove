@@ -197,3 +197,6 @@ class HomePage:
         }
         self.open_upload_button.disabled = state != ServerState.RUNNING
         self.url.value = self.controller.server_url
+
+    def dispose(self) -> None:
+        """Release page-specific resources before switching views."""

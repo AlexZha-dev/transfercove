@@ -1,4 +1,5 @@
 import webbrowser
+from typing import Protocol
 
 import flet as ft
 
@@ -8,12 +9,21 @@ from app.view.home_page import HomePage
 from app.view.settings_page import SettingsPage
 
 
+class View(Protocol):
+    @property
+    def root(self) -> ft.Control: ...
+
+    def refresh(self) -> None: ...
+
+    def dispose(self) -> None: ...
+
+
 class MainPage:
     def __init__(self, page: ft.Page) -> None:
         self.page = page
         self.controller = AppController()
         self.content = ft.Container(expand=True)
-        self.current_view = None
+        self.current_view: View | None = None
 
     async def initialize(self) -> None:
         self.page.title = "WiFi Transmitter"
@@ -78,34 +88,42 @@ class MainPage:
         )
 
     def refresh_current_view(self) -> None:
-        if self.current_view and hasattr(self.current_view, "refresh"):
+        if self.current_view is not None:
             self.current_view.refresh()
         self.page.update()
 
     def show_home(self, _=None) -> None:
-        self.current_view = HomePage(
+        self.dispose_current_view()
+        view = HomePage(
             controller=self.controller,
             open_settings=self.show_settings,
         )
+        self.current_view = view
         self.content.content = ft.Container(
-            content=self.current_view.root,
+            content=view.root,
             padding=32,
             expand=True,
         )
         self.page.update()
 
     def show_settings(self, _=None) -> None:
-        self.current_view = SettingsPage(
+        self.dispose_current_view()
+        view = SettingsPage(
             controller=self.controller,
             go_back=self.show_home,
             page=self.page,
         )
+        self.current_view = view
         self.content.content = ft.Container(
-            content=self.current_view.root,
+            content=view.root,
             padding=32,
             expand=True,
         )
         self.page.update()
+
+    def dispose_current_view(self) -> None:
+        if self.current_view is not None:
+            self.current_view.dispose()
 
     async def close(self) -> None:
         await self.controller.close()
