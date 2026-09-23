@@ -155,6 +155,16 @@ Once running, these endpoints are available:
 
 Uploaded files are stored under UUID-based names while preserving their original extension. Original names and metadata are kept in the database. The list, download, and delete API endpoints are currently placeholders.
 
+### Run the test suite
+
+The project uses `pytest` for unit and integration tests. The suite covers configuration validation, SQLite migrations, settings persistence, file-storage cleanup, the upload service, and the public FastAPI endpoints.
+
+```bash
+poetry run pytest
+```
+
+The tests create temporary databases and storage directories, so they do not modify `.data/` or the local settings database.
+
 ### Project structure
 
 ```text

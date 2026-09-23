@@ -16,7 +16,8 @@ dependencies = [
     "alembic (>=1.20.0,<2.0.0)",
     "aiosqlite (>=0.22.1,<0.23.0)",
     "python-multipart (>=0.0.32,<0.0.33)",
-    "flet (>=0.86.0,<1.0.0)"
+    "flet (>=0.86.0,<1.0.0)",
+    "pytest (>=9.1.1,<10.0.0)"
 ]
 
 
@@ -35,3 +36,7 @@ icon_background = "#07100C"
 [tool.flet.app]
 module = "main"
 exclude = [".git", ".venv", "venv", ".env", ".data", ".flet-data", ".ruff_cache", "build", "dist", "docs", "tools"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
