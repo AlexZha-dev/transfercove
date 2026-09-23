@@ -6,6 +6,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
+from app.core.db import ensure_database_directory
 from app.core.settings import settings
 from app.models.application_settings import ApplicationSettingsRecord  # noqa
 from app.models.base import Base
@@ -25,9 +26,16 @@ if config.config_file_name is not None:
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 target_metadata = Base.metadata
+configured_database_url = config.get_main_option("sqlalchemy.url")
+if configured_database_url in {None, "", "driver://user:pass@localhost/dbname"}:
+    configured_database_url = settings.transmitter.database_url
+
+assert configured_database_url is not None
+ensure_database_directory(configured_database_url)
+
 config.set_main_option(
     "sqlalchemy.url",
-    settings.transmitter.database_url,
+    configured_database_url,
 )
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
