@@ -6,81 +6,61 @@ from pydantic import ValidationError
 
 from app.controller.controller import AppController
 from app.core.settings import (
-    AppConfig,
     DesktopConfig,
     Settings,
     TransmitterSettings,
     UvicornConfig,
 )
-from app.core.theme import COLORS, panel, section_title
+from app.core.theme import (
+    COLORS,
+    button_style,
+    eyebrow,
+    icon_badge,
+    panel,
+    section_title,
+    text_field,
+)
 
 
 class SettingsPage:
-    def __init__(
-        self,
-        controller: AppController,
-        go_back,
-        page: ft.Page,
-    ) -> None:
+    def __init__(self, controller: AppController, go_back, page: ft.Page) -> None:
         self.controller = controller
         self.go_back = go_back
         self.page = page
-
         settings = controller.settings
 
-        self.app_title = ft.TextField(
-            label="Application title",
-            value=settings.app.title,
+        self.app_title = ft.Text(
+            settings.app.title,
+            size=20,
+            weight=ft.FontWeight.W_600,
+            color=COLORS["text"],
+            selectable=True,
+        )
+        self.app_description = ft.Text(
+            settings.app.description,
+            size=13,
+            color=COLORS["muted_bright"],
+            selectable=True,
+        )
+        self.app_version = ft.Text(size=12, color=COLORS["primary"], selectable=True)
+        self.app_debug = ft.Text(size=12, color=COLORS["muted"])
+        self.host = text_field("Bind host", settings.uvicorn.host, expand=3)
+        self.port = text_field(
+            "Port",
+            str(settings.uvicorn.port),
+            expand=2,
+            keyboard_type=ft.KeyboardType.NUMBER,
+        )
+        self.log_level = text_field("Log level", settings.uvicorn.log_level)
+        self.reload = ft.Switch(value=settings.uvicorn.reload, tooltip="Server reload")
+        self.storage_path = text_field(
+            "Storage directory",
+            str(settings.transmitter.storage_dir),
             expand=True,
         )
-        self.app_description = ft.TextField(
-            label="Description",
-            value=settings.app.description,
-            multiline=True,
-            min_lines=2,
-            expand=True,
+        self.database_url = text_field(
+            "Database URL", settings.transmitter.database_url
         )
-        self.app_version = ft.TextField(
-            label="Version",
-            value=settings.app.version,
-            expand=True,
-        )
-        self.app_debug = ft.Switch(
-            label="Debug mode",
-            value=settings.app.debug,
-        )
-
-        self.host = ft.TextField(
-            label="Bind host",
-            value=settings.uvicorn.host,
-            expand=True,
-        )
-        self.port = ft.TextField(
-            label="Port",
-            value=str(settings.uvicorn.port),
-            expand=True,
-        )
-        self.log_level = ft.TextField(
-            label="Log level",
-            value=settings.uvicorn.log_level,
-            expand=True,
-        )
-        self.reload = ft.Switch(
-            label="Uvicorn reload",
-            value=settings.uvicorn.reload,
-        )
-
-        self.storage_path = ft.TextField(
-            label="Storage directory",
-            value=str(settings.transmitter.storage_dir),
-            expand=True,
-        )
-        self.database_url = ft.TextField(
-            label="Database URL",
-            value=settings.transmitter.database_url,
-            expand=True,
-        )
-
         self.language = ft.Dropdown(
             label="Language",
             value=settings.desktop.language,
@@ -88,156 +68,252 @@ class SettingsPage:
                 ft.DropdownOption(key="en", text="English"),
                 ft.DropdownOption(key="ru", text="Русский"),
             ],
+            text_size=13,
+            color=COLORS["text"],
+            label_style=ft.TextStyle(size=12, color=COLORS["muted"]),
+            filled=True,
+            fill_color=COLORS["field"],
+            bgcolor=COLORS["panel"],
+            border_color=COLORS["border"],
+            focused_border_color=COLORS["primary"],
+            border_radius=12,
+            content_padding=16,
+            expanded_insets=0,
         )
         self.auto_start = ft.Switch(
-            label="Start server with application",
-            value=settings.desktop.auto_start,
+            value=settings.desktop.auto_start, tooltip="Start automatically"
         )
         self.open_browser = ft.Switch(
-            label="Open upload page after start",
-            value=settings.desktop.open_browser,
+            value=settings.desktop.open_browser, tooltip="Open browser after start"
         )
-
-        self.message = ft.Text()
+        self.message = ft.Text(size=12, visible=False)
+        self.save_button = ft.Button(
+            "Save changes",
+            icon=ft.Icons.CHECK_ROUNDED,
+            style=button_style(primary=True),
+            height=46,
+            on_click=self.save,
+        )
 
         self.root = ft.Column(
             controls=[
-                ft.Text(
-                    "Settings",
-                    size=32,
-                    weight=ft.FontWeight.BOLD,
-                    color=COLORS["text"],
-                ),
-                ft.Text(
-                    "Configure the desktop application and FastAPI runtime",
-                    color=COLORS["muted"],
-                ),
-                ft.Divider(color=COLORS["border"]),
-                panel(
-                    ft.Column(
-                        controls=[
-                            section_title(
-                                "Application",
-                                "Values from APP__* in .env",
-                            ),
-                            ft.Row(
-                                controls=[self.app_title, self.app_version],
-                                spacing=12,
-                            ),
-                            self.app_description,
-                            self.app_debug,
-                        ],
-                        spacing=16,
-                    )
-                ),
-                panel(
-                    ft.Column(
-                        controls=[
-                            section_title(
-                                "Server",
-                                "Values from UVICORN__* in .env",
-                            ),
-                            ft.Row(
-                                controls=[self.host, self.port],
-                                spacing=12,
-                            ),
-                            ft.Row(
-                                controls=[self.log_level, self.reload],
-                                spacing=12,
-                                vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                            ),
-                        ],
-                        spacing=16,
-                    )
-                ),
-                panel(
-                    ft.Column(
-                        controls=[
-                            section_title(
-                                "Transmitter",
-                                "Values from TRANSMITTER__* in .env",
-                            ),
-                            ft.Row(
-                                controls=[
-                                    self.storage_path,
-                                    ft.IconButton(
-                                        icon=ft.Icons.FOLDER_OPEN,
-                                        tooltip=(
-                                            "Directory picker unavailable in web mode"
-                                            if self.page.web
-                                            else "Choose storage directory"
-                                        ),
-                                        on_click=self.choose_directory,
-                                        disabled=self.page.web,
-                                    ),
-                                ]
-                            ),
-                            self.database_url,
-                        ],
-                        spacing=16,
-                    )
-                ),
-                panel(
-                    ft.Column(
-                        controls=[
-                            section_title(
-                                "Desktop",
-                                "Settings used by the Flet application",
-                            ),
-                            self.language,
-                            self.auto_start,
-                            self.open_browser,
-                        ],
-                        spacing=16,
-                    )
-                ),
-                ft.Row(
-                    controls=[
-                        ft.Button(
-                            content="Save changes",
-                            icon=ft.Icons.SAVE,
-                            on_click=self.save,
+                ft.Column(
+                    [
+                        eyebrow("Your workspace"),
+                        ft.Text(
+                            "Make it yours.",
+                            size=36,
+                            weight=ft.FontWeight.W_700,
+                            color=COLORS["text"],
+                            style=ft.TextStyle(letter_spacing=-1),
                         ),
-                        ft.TextButton(
-                            content="Back",
-                            on_click=lambda _: self.go_back(),
+                        ft.Text(
+                            "A few preferences for a smoother connection.",
+                            size=14,
+                            color=COLORS["muted"],
                         ),
-                        self.message,
                     ],
-                    spacing=12,
+                    spacing=10,
+                ),
+                ft.Column(
+                    controls=[
+                        ft.ResponsiveRow(
+                            controls=[
+                                self.settings_section(
+                                    "Connection",
+                                    "Choose how devices reach your server.",
+                                    ft.Icons.ROUTER_ROUNDED,
+                                    [
+                                        ft.Row([self.host, self.port], spacing=12),
+                                        self.log_level,
+                                        self.toggle_row(
+                                            "Server reload",
+                                            "Applies when running the server separately.",
+                                            self.reload,
+                                        ),
+                                    ],
+                                ),
+                                self.settings_section(
+                                    "Storage",
+                                    "A home for everything you receive.",
+                                    ft.Icons.FOLDER_OPEN_ROUNDED,
+                                    [
+                                        ft.Row(
+                                            [
+                                                self.storage_path,
+                                                ft.IconButton(
+                                                    icon=ft.Icons.FOLDER_OPEN_ROUNDED,
+                                                    icon_color=COLORS["primary"],
+                                                    bgcolor=COLORS["primary_dark"],
+                                                    style=ft.ButtonStyle(
+                                                        shape=ft.RoundedRectangleBorder(
+                                                            radius=12
+                                                        )
+                                                    ),
+                                                    tooltip="Enter a path in web mode"
+                                                    if self.page.web
+                                                    else "Choose storage directory",
+                                                    on_click=self.choose_directory,
+                                                    disabled=self.page.web,
+                                                ),
+                                            ],
+                                            spacing=8,
+                                        ),
+                                        self.database_url,
+                                        ft.Text(
+                                            "New uploads are saved to this folder.",
+                                            size=12,
+                                            color=COLORS["muted"],
+                                        ),
+                                    ],
+                                ),
+                                self.settings_section(
+                                    "Desktop",
+                                    "Settle into your own workflow.",
+                                    ft.Icons.COMPUTER_ROUNDED,
+                                    [
+                                        self.language,
+                                        self.toggle_row(
+                                            "Start automatically",
+                                            "Start the server when the app opens.",
+                                            self.auto_start,
+                                        ),
+                                        self.toggle_row(
+                                            "Open browser",
+                                            "Open the upload page after starting.",
+                                            self.open_browser,
+                                        ),
+                                    ],
+                                ),
+                                self.settings_section(
+                                    "About this app",
+                                    "Application information",
+                                    ft.Icons.INFO_OUTLINE_ROUNDED,
+                                    [
+                                        self.app_title,
+                                        self.app_description,
+                                        ft.Row(
+                                            [self.app_version, self.app_debug],
+                                            spacing=20,
+                                            run_spacing=10,
+                                            wrap=True,
+                                        ),
+                                    ],
+                                ),
+                            ],
+                            spacing=18,
+                            run_spacing=18,
+                        ),
+                        ft.Row(
+                            [
+                                ft.Icon(
+                                    ft.Icons.INFO_OUTLINE_ROUNDED,
+                                    size=16,
+                                    color=COLORS["muted"],
+                                ),
+                                ft.Text(
+                                    "Saving settings restarts the server if it is running.",
+                                    size=12,
+                                    color=COLORS["muted"],
+                                    expand=True,
+                                ),
+                            ],
+                            spacing=10,
+                        ),
+                    ],
+                    spacing=20,
+                    expand=True,
+                    scroll=ft.ScrollMode.AUTO,
+                    horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
+                ),
+                ft.Container(
+                    content=ft.Column(
+                        [
+                            ft.Row(
+                                [
+                                    self.save_button,
+                                    ft.TextButton(
+                                        "Back to dashboard",
+                                        on_click=lambda _: self.go_back(),
+                                    ),
+                                ],
+                                spacing=12,
+                                run_spacing=8,
+                                wrap=True,
+                            ),
+                            self.message,
+                        ],
+                        spacing=10,
+                    ),
+                    padding=ft.Padding.only(top=18),
+                    border=ft.Border(top=ft.BorderSide(1, COLORS["border"])),
                 ),
             ],
-            spacing=20,
-            scroll=ft.ScrollMode.AUTO,
+            spacing=26,
             expand=True,
+            horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
+        )
+        self.refresh()
+
+    @staticmethod
+    def settings_section(title, subtitle, icon, controls) -> ft.Container:
+        return panel(
+            ft.Column(
+                controls=[
+                    ft.Row(
+                        [
+                            icon_badge(icon),
+                            ft.Container(section_title(title, subtitle), expand=True),
+                        ],
+                        spacing=14,
+                    ),
+                    ft.Divider(height=1, color=COLORS["border"]),
+                    *controls,
+                ],
+                spacing=20,
+                horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
+            ),
+            col={"xs": 12, "md": 6},
+        )
+
+    @staticmethod
+    def toggle_row(title: str, description: str, switch: ft.Switch) -> ft.Row:
+        return ft.Row(
+            [
+                ft.Column(
+                    [
+                        ft.Text(
+                            title,
+                            size=13,
+                            color=COLORS["text"],
+                            weight=ft.FontWeight.W_500,
+                        ),
+                        ft.Text(description, size=11, color=COLORS["muted"]),
+                    ],
+                    spacing=4,
+                    expand=True,
+                ),
+                switch,
+            ],
+            spacing=12,
         )
 
     def refresh(self) -> None:
-        settings = self.controller.settings
-
-        self.app_title.value = settings.app.title
-        self.app_description.value = settings.app.description
-        self.app_version.value = settings.app.version
-        self.app_debug.value = settings.app.debug
-        self.host.value = settings.uvicorn.host
-        self.port.value = str(settings.uvicorn.port)
-        self.log_level.value = settings.uvicorn.log_level
-        self.reload.value = settings.uvicorn.reload
-        self.storage_path.value = str(settings.transmitter.storage_dir)
-        self.database_url.value = settings.transmitter.database_url
-        self.language.value = settings.desktop.language
-        self.auto_start.value = settings.desktop.auto_start
-        self.open_browser.value = settings.desktop.open_browser
+        """Refresh application info without changing unsaved preferences."""
+        application = self.controller.settings.app
+        self.app_title.value = application.title
+        self.app_description.value = application.description
+        self.app_version.value = f"Version {application.version}"
+        self.app_debug.value = f"Debug mode: {'on' if application.debug else 'off'}"
 
     async def save(self, _):
+        self.save_button.disabled = True
+        self.save_button.content = "Saving..."
+        self.message.visible = False
+        self.page.update()
         try:
             settings = Settings(
-                app=AppConfig(
-                    title=self.app_title.value or "WIFI TRANSMITTER",
-                    description=self.app_description.value or "",
-                    version=self.app_version.value or "0.1.0",
-                    debug=self.app_debug.value,
-                ),
+                app=self.controller.settings.app.model_copy(deep=True),
                 uvicorn=UvicornConfig(
                     host=self.host.value or "127.0.0.1",
                     port=int(self.port.value or "8000"),
@@ -269,8 +345,11 @@ class SettingsPage:
         except (ValueError, ValidationError) as error:
             self.message.value = f"Invalid settings: {error}"
             self.message.color = COLORS["danger"]
-
-        self.page.update()
+        finally:
+            self.save_button.disabled = False
+            self.save_button.content = "Save changes"
+            self.message.visible = True
+            self.page.update()
 
     async def choose_directory(self, _):
         if self.page.web:
@@ -279,11 +358,14 @@ class SettingsPage:
                 "Enter the path manually."
             )
             self.message.color = COLORS["warning"]
+            self.message.visible = True
             self.page.update()
             return
 
         current_path = Path(self.storage_path.value or ".").expanduser()
-        initial_directory = current_path if current_path.is_dir() else current_path.parent
+        initial_directory = (
+            current_path if current_path.is_dir() else current_path.parent
+        )
 
         selected_path = await asyncio.to_thread(
             self._select_directory,
@@ -313,7 +395,7 @@ class SettingsPage:
                 )
             finally:
                 root.destroy()
-        except (OSError, RuntimeError, tk.TclError):
+        except OSError, RuntimeError, tk.TclError:
             return None
 
         return Path(selected_path) if selected_path else None
