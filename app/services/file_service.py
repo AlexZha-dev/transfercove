@@ -1,5 +1,4 @@
 from pathlib import Path
-from time import perf_counter
 from uuid import uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
