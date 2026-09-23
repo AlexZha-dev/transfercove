@@ -5,6 +5,7 @@ from fastapi import FastAPI, Request
 from app.core.settings import settings as s
 from app.routes.api_v1 import api_v1
 from app.routes.health import health_router
+from app.routes.static import register_static
 
 app = FastAPI(
     debug=s.app.debug,
@@ -22,3 +23,4 @@ async def request_timer(request: Request, call_next):
 
 app.include_router(router=health_router)
 app.include_router(router=api_v1)
+register_static(app=app)
