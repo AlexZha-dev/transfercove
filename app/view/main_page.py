@@ -80,7 +80,7 @@ class MainPage:
         )
 
     async def initialize(self) -> None:
-        self.page.title = "WiFi Transmitter"
+        self.page.title = "TransferCove"
         self.page.theme_mode = ft.ThemeMode.DARK
         self.page.theme = app_theme()
         self.page.dark_theme = app_theme()
@@ -117,10 +117,10 @@ class MainPage:
         self.brand_text = ft.Column(
             controls=[
                 ft.Text(
-                    "WiFi", size=20, weight=ft.FontWeight.W_700, color=COLORS["text"]
+                    "Transfer", size=20, weight=ft.FontWeight.W_700, color=COLORS["text"]
                 ),
                 ft.Text(
-                    "TRANSMITTER",
+                    "COVE",
                     size=9,
                     color=COLORS["muted"],
                     style=ft.TextStyle(letter_spacing=1.7),

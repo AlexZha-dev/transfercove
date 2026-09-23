@@ -16,7 +16,7 @@ def resolve_storage_path(path: Path) -> Path:
 
 
 class AppConfig(BaseModel):
-    title: str = "WIFI TRANSMITTER"
+    title: str = "TransferCove"
     description: str = "Application for sharing files over a local network"
     version: str = "0.2.0"
     debug: bool = False

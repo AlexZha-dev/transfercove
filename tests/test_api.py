@@ -18,7 +18,7 @@ def test_upload_page_and_static_assets_are_available(client: TestClient) -> None
     script = client.get("/static/upload.js")
 
     assert page.status_code == 200
-    assert "WiFi Transmitter" in page.text
+    assert "TransferCove" in page.text
     assert stylesheet.status_code == 200
     assert "--green:" in stylesheet.text
     assert script.status_code == 200

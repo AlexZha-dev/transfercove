@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/images/banner.svg" width="100%" alt="WiFi Transmitter — your files, your network">
+<img src="docs/images/banner.svg" width="100%" alt="TransferCove — your files, your network">
 
 <br>
 
@@ -34,7 +34,7 @@ The dark green interface adapts to the window size. The sending device only need
 
 Server status and connection settings are available on one screen.
 
-<img src="docs/images/dashboard.png" width="100%" alt="WiFi Transmitter dashboard with a running server">
+<img src="docs/images/dashboard.png" width="100%" alt="TransferCove dashboard with a running server">
 
 <table>
   <tr>
@@ -215,7 +215,7 @@ Flet reads the application icon from `assets/icon.png`; the build entry point an
 
 ## License
 
-WiFi Transmitter is open-source software licensed under the [MIT License](LICENSE).
+TransferCove is open-source software licensed under the [MIT License](LICENSE).
 You may use, modify, and redistribute the project, including in commercial products,
 provided that the copyright and license notices are preserved.
 This license covers the project code and original assets in this repository; third-party
@@ -227,7 +227,7 @@ dependencies remain under their own licenses.
 
 <img src="assets/icon.svg" width="44" height="44" alt="">
 
-**WiFi Transmitter**<br>
+**TransferCove**<br>
 <sub>Your devices. One connection.</sub>
 
 </div>

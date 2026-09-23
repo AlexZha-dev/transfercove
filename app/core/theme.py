@@ -10,7 +10,7 @@ def brand_icon(size: int = 42) -> ft.Image:
         src="icon.svg",
         width=size,
         height=size,
-        semantics_label="WiFi Transmitter",
+        semantics_label="TransferCove",
         fit=ft.BoxFit.CONTAIN,
     )
 

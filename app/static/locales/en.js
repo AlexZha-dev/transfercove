@@ -1,8 +1,8 @@
 window.UPLOAD_LOCALES = window.UPLOAD_LOCALES || {};
 
 window.UPLOAD_LOCALES.en = {
-  pageTitle: "WiFi Transmitter — file upload",
-  brand: "WiFi Transmitter",
+  pageTitle: "TransferCove — file upload",
+  brand: "TransferCove",
   network: "Local network",
   eyebrow: "Fast Wi-Fi transfer",
   heroTitle: "Send files",

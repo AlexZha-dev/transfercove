@@ -262,7 +262,7 @@ class HomePage:
                                 ft.Icons.WIFI_ROUNDED, size=14, color=COLORS["primary"]
                             ),
                             ft.Text(
-                                "WiFi Transmitter  /  A direct connection to your devices",
+                                "TransferCove  /  A direct connection to your devices",
                                 size=11,
                                 color=COLORS["muted"],
                                 expand=True,

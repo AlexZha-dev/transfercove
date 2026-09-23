@@ -75,7 +75,7 @@ class ServerManager:
                 self._server = uvicorn.Server(config)
                 self._task = asyncio.create_task(
                     self._server.serve(),
-                    name="wifi-transmitter-fastapi",
+                    name="transfercove-fastapi",
                 )
 
                 await self._wait_until_ready(settings)

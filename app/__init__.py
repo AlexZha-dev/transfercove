@@ -1,1 +1,1 @@
-"""WIFI Transmitter application package."""
+"""TransferCove application package."""
