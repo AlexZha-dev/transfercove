@@ -2,6 +2,7 @@
 name = "wifi-trancmitor"
 version = "0.2.0"
 description = "Desktop-controlled file transfers over your local network"
+license = "MIT"
 authors = [
     {name = "AlexZha-dev",email = "oleksandr.zhabchenko.work@outlook.com"}
 ]

@@ -211,6 +211,16 @@ Flet reads the application icon from `assets/icon.png`; the build entry point an
 - Full localization is not connected yet: the interface is currently English, while the language selector stores a preference for future localization.
 - The server uses plain HTTP without authentication. The application is intended for a trusted local network; public deployment requires separate access control and HTTPS configuration.
 
+<a id="license"></a>
+
+## License
+
+WiFi Transmitter is open-source software licensed under the [MIT License](LICENSE).
+You may use, modify, and redistribute the project, including in commercial products,
+provided that the copyright and license notices are preserved.
+This license covers the project code and original assets in this repository; third-party
+dependencies remain under their own licenses.
+
 <br>
 
 <div align="center">
