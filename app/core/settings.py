@@ -15,6 +15,12 @@ def resolve_storage_path(path: Path) -> Path:
     return (base_dir / path).resolve()
 
 
+def is_packaged_build() -> bool:
+    """Return whether the app is running inside Flet's production bundle."""
+
+    return bool(os.getenv("FLET_APP_CONSOLE"))
+
+
 class AppConfig(BaseModel):
     title: str = "TransferCove"
     description: str = "Application for sharing files over a local network"

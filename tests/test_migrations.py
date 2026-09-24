@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import sqlite3
 from pathlib import Path
 
 from sqlalchemy import inspect
@@ -29,3 +30,25 @@ def test_database_migrations_create_application_tables(tmp_path: Path) -> None:
         "files",
         "application_settings",
     }
+
+
+def test_database_migrations_repair_missing_files_table(tmp_path: Path) -> None:
+    database_path = tmp_path / "broken.db"
+    with sqlite3.connect(database_path) as database:
+        database.execute("create table alembic_version (version_num varchar(32))")
+        database.execute(
+            "insert into alembic_version (version_num) values (?)",
+            ("d0b65365c266",),
+        )
+
+    upgrade_database(f"sqlite+aiosqlite:///{database_path.as_posix()}")
+
+    with sqlite3.connect(database_path) as database:
+        tables = {
+            row[0]
+            for row in database.execute(
+                "select name from sqlite_master where type = 'table'"
+            )
+        }
+
+    assert "files" in tables

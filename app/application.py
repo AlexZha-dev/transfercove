@@ -5,6 +5,7 @@ from fastapi import FastAPI, Request
 
 from app.core.db import Database
 from app.core.settings import Settings
+from app.core.settings import is_packaged_build
 from app.core.settings import settings as default_settings
 from app.routes.api_v1 import api_v1
 from app.routes.health import health_router
@@ -30,6 +31,9 @@ def create_app(config: Settings | None = None) -> FastAPI:
         description=config.app.description,
         version=config.app.version,
         lifespan=lifespan,
+        docs_url=None if is_packaged_build() else "/docs",
+        redoc_url=None if is_packaged_build() else "/redoc",
+        openapi_url=None if is_packaged_build() else "/openapi.json",
     )
 
     app.state.settings = config

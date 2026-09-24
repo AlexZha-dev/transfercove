@@ -9,6 +9,7 @@ from app.core.settings import (
     AppConfig,
     Settings,
     UvicornConfig,
+    is_packaged_build,
     resolve_storage_path,
 )
 
@@ -25,6 +26,16 @@ def test_absolute_storage_path_is_preserved(tmp_path: Path) -> None:
     absolute_path = (tmp_path / "uploads").resolve()
 
     assert resolve_storage_path(absolute_path) == absolute_path
+
+
+def test_packaged_build_detection_uses_flet_console_variable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("FLET_APP_CONSOLE", raising=False)
+    assert is_packaged_build() is False
+
+    monkeypatch.setenv("FLET_APP_CONSOLE", "C:/Temp/TransferCove/console.log")
+    assert is_packaged_build() is True
 
 
 def test_settings_builds_nested_configuration() -> None:

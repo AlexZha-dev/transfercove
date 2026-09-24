@@ -18,7 +18,6 @@ dependencies = [
     "aiosqlite (>=0.22.1,<0.23.0)",
     "python-multipart (>=0.0.32,<0.0.33)",
     "flet (>=0.86.0,<1.0.0)",
-    "pytest (>=9.1.1,<10.0.0)"
 ]
 
 
@@ -30,13 +29,48 @@ build-backend = "poetry.core.masonry.api"
 packages = [{ include = "app" }]
 include = [{ path = "assets", format = ["sdist", "wheel"] }]
 
+[tool.poetry.group.dev.dependencies]
+pytest = ">=9.1.1,<10.0.0"
+
 [tool.flet]
 product = "TransferCove"
+artifact = "TransferCove"
+company = ""
+copyright = "Copyright (c) 2026 AlexZha-dev"
 icon_background = "#07100C"
 
 [tool.flet.app]
 module = "main"
-exclude = [".git", ".venv", "venv", ".env", ".data", ".flet-data", ".ruff_cache", "build", "dist", "docs", "tools"]
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    ".env",
+    ".env.example",
+    ".data",
+    ".flet-data",
+    ".ruff_cache",
+    ".pytest_cache",
+    "__pycache__",
+    "build",
+    "dist",
+    "docs",
+    "installer",
+    "tools",
+    "tests",
+    "app/.flet",
+    ".tmp-test",
+    ".tmp-pytest-run",
+    ".tmp-pytest-run2",
+    ".gitignore",
+    "README.md",
+    "pyproject.toml",
+    "poetry.lock",
+]
+
+[tool.flet.cleanup]
+app = true
+app_files = ["**/__pycache__", "**/.pytest_cache", "**/.flet"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
