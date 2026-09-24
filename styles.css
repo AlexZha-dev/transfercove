@@ -123,7 +123,8 @@ h2 { font-size: clamp(34px, 3.8vw, 50px); line-height: 1.13; font-weight: 550; l
 .story-mobile .story-copy > p:not(.eyebrow) { margin-top: 21px; }
 .story-mobile .text-link { margin-top: 17px; color: var(--accent); }
 .mobile-figure { width: min(100%, 390px); justify-self: center; }
-.mobile-figure .screenshot-link { border-radius: 22px; border: 6px solid #23392c; box-shadow: 0 24px 50px #0003; }
+.mobile-figure .screenshot-link { width: fit-content; margin-inline: auto; border-radius: 22px; border: 6px solid #23392c; box-shadow: 0 24px 50px #0003; }
+.mobile-figure .screenshot-link img { display: block; width: auto; max-width: 100%; max-height: 600px; margin-inline: auto; }
 .mobile-figure figcaption { text-align: center; }
 .connection-route { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; margin-top: 44px; padding-top: 25px; border-top: 1px solid var(--border); font-size: 12px; }
 .route-line { flex: 1; color: var(--accent); text-align: center; border-bottom: 1px dashed #496d56; line-height: .05; }
