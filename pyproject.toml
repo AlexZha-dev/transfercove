@@ -1,18 +1,81 @@
 [project]
-name = "wifi-trancmitor"
-version = "0.1.0"
-description = ""
+name = "transfercove"
+version = "0.2.3"
+description = "Desktop-controlled file transfers over your local network"
+license = "MIT"
 authors = [
     {name = "AlexZha-dev",email = "oleksandr.zhabchenko.work@outlook.com"}
 ]
-requires-python = ">=3.14"
+requires-python = ">=3.14,<4.0"
 dependencies = [
     "fastapi (>=0.141.1,<0.142.0)",
     "pydantic (>=2.13.5,<3.0.0)",
-    "pydantic-settings (>=2.15.0,<3.0.0)"
+    "pydantic-settings (>=2.15.0,<3.0.0)",
+    "uvicorn (>=0.53.0,<0.54.0)",
+    "sqlalchemy (>=2.0.54,<3.0.0)",
+    "greenlet (>=3.5.0,<4.0.0)",
+    "alembic (>=1.20.0,<2.0.0)",
+    "aiosqlite (>=0.22.1,<0.23.0)",
+    "python-multipart (>=0.0.32,<0.0.33)",
+    "qrcode (>=8.2,<9.0)",
+    "flet (>=0.86.0,<1.0.0)",
 ]
 
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+packages = [{ include = "app" }]
+include = [{ path = "assets", format = ["sdist", "wheel"] }]
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=9.1.1,<10.0.0"
+
+[tool.flet]
+product = "TransferCove"
+artifact = "TransferCove"
+company = ""
+copyright = "Copyright (c) 2026 AlexZha-dev"
+icon_background = "#07100C"
+
+[tool.flet.app]
+module = "main"
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    ".env",
+    ".env.example",
+    ".data",
+    ".flet-data",
+    ".ruff_cache",
+    ".pytest_cache",
+    "__pycache__",
+    "build",
+    "dist",
+    "docs",
+    "installer",
+    "tools",
+    "tests",
+    "app/.flet",
+    ".tmp-test",
+    ".tmp-pytest-run",
+    ".tmp-pytest-run2",
+    ".tmp-pytest-run3",
+    ".tmp-pytest-final",
+    ".tmp-pytest-final2",
+    ".gitignore",
+    "README.md",
+    "pyproject.toml",
+    "poetry.lock",
+]
+
+[tool.flet.cleanup]
+app = true
+app_files = ["**/__pycache__", "**/.pytest_cache", "**/.flet"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

@@ -1,0 +1,1 @@
+"""TransferCove application package."""

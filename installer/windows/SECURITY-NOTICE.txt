@@ -1,0 +1,9 @@
+TransferCove Security Notice
+
+TransferCove does not encrypt network traffic and does not provide authentication.
+Files are transferred over plain HTTP.
+
+Use this application only inside a trusted, verified local network. Do not expose
+the server to the public internet or an untrusted Wi-Fi network.
+
+Continue with installation only if you understand and accept these limitations.

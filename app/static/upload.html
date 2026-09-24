@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en" data-language="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#07100c">
+  <meta name="description" content="Send files directly to your computer over your local network with TransferCove.">
+  <title>TransferCove</title>
+  <link rel="icon" href="/assets/icon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="/favicon.ico" sizes="16x16 32x32 48x48 64x64 128x128 256x256">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" sizes="180x180">
+  <link rel="stylesheet" href="/static/upload.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="TransferCove" data-i18n-aria-label="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <img src="/assets/icon.svg" width="34" height="34" alt="">
+        </span>
+        <span data-i18n="brand">TransferCove</span>
+      </a>
+
+      <div class="connection-pill">
+        <span class="online-dot"></span>
+        <span data-i18n="network">Local network</span>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <section class="intro">
+        <p class="eyebrow" data-i18n="eyebrow">Fast Wi-Fi transfer</p>
+        <h1>
+          <span data-i18n="heroTitle">Send files</span><br>
+          <span class="hero-accent" data-i18n="heroAccent">without extra wires.</span>
+        </h1>
+        <p class="intro-text" data-i18n="intro">
+          Choose one or more files and send them directly to a device on your local network.
+        </p>
+      </section>
+
+      <form id="upload-form" class="upload-card">
+        <label id="drop-zone" class="drop-zone" for="file-input">
+          <span class="drop-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+              <path d="M12 16V4" />
+              <path d="m7 9 5-5 5 5" />
+              <path d="M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" />
+            </svg>
+          </span>
+          <span class="drop-title" data-i18n="dropTitle">Drop files here</span>
+          <span class="drop-subtitle" data-i18n="dropSubtitle">or click to browse from your device</span>
+          <span class="drop-hint" data-i18n="dropHint">Multiple files supported</span>
+          <input id="file-input" type="file" multiple required>
+        </label>
+
+        <div class="queue-header">
+          <div>
+            <p class="section-label" data-i18n="queueTitle">Upload queue</p>
+            <p id="file-count" class="file-count" data-i18n="noFiles">No files selected</p>
+          </div>
+          <button id="cancel-button" class="button button-ghost" type="button" disabled>
+            <span data-i18n="cancel">Cancel</span>
+          </button>
+        </div>
+
+        <div id="file-list" class="file-list" aria-live="polite"></div>
+
+        <section class="progress-section" aria-label="Overall progress" data-i18n-aria-label="overallProgressLabel">
+          <div class="progress-heading">
+            <span class="section-label" data-i18n="overallProgressLabel">Overall progress</span>
+            <strong id="overall-percent">0%</strong>
+          </div>
+          <div class="progress-track progress-track-large">
+            <div id="overall-progress" class="progress-fill"></div>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-card">
+              <span class="stat-label" data-i18n="speed">Speed</span>
+              <strong id="speed-value">—</strong>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label" data-i18n="status">Status</span>
+              <strong id="overall-status" data-i18n="waiting">Waiting</strong>
+            </div>
+          </div>
+        </section>
+
+        <div class="upload-actions">
+          <div class="action-buttons">
+            <button id="submit-button" class="button button-primary" type="submit" disabled>
+              <span class="button-upload-icon" aria-hidden="true">↑</span>
+              <span class="button-label" data-i18n="startUpload">Start upload</span>
+            </button>
+            <button id="stop-button" class="button button-stop" type="button" hidden>
+              <span class="button-stop-icon" aria-hidden="true">■</span>
+              <span data-i18n="stop">Stop</span>
+            </button>
+          </div>
+          <p id="status" class="status-message" role="status" data-i18n="chooseFiles">Choose files to begin</p>
+        </div>
+      </form>
+    </main>
+
+    <footer class="footer">
+      <span class="footer-dot"></span>
+      <span data-i18n="localOnly">Files are transferred only within your local network</span>
+    </footer>
+  </div>
+
+  <script>
+    window.APP_LANGUAGE = window.APP_LANGUAGE || document.documentElement.dataset.language || "en";
+  </script>
+  <script src="/static/locales/en.js"></script>
+  <script src="/static/upload.js"></script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+TransferCove 0.2.3 — third-party notices
+==========================================
+
+TransferCove is distributed under the MIT License. The project license is
+available in the LICENSE file next to this notice.
+
+The Windows application bundles the production dependencies listed below.
+The versions shown are the versions resolved for the production dependency
+group in poetry.lock. Development-only packages used to run tests are not
+included in the release application and are intentionally omitted here.
+
+Package                 Version   License(s)                    Upstream
+----------------------  --------  ----------------------------  ---------------------------------------------
+aiosqlite               0.22.1    MIT                           https://pypi.org/project/aiosqlite/
+alembic                 1.20.0    MIT                           https://pypi.org/project/alembic/
+annotated-doc           0.0.5     MIT                           https://pypi.org/project/annotated-doc/
+annotated-types         0.8.0     MIT                           https://pypi.org/project/annotated-types/
+anyio                   4.15.1    MIT                           https://pypi.org/project/anyio/
+certifi                 2026.7.22  MPL-2.0                      https://pypi.org/project/certifi/
+click                   8.5.0     BSD-3-Clause                  https://pypi.org/project/click/
+fastapi                 0.141.1   MIT                           https://pypi.org/project/fastapi/
+flet                    0.86.5    Apache-2.0                    https://pypi.org/project/flet/
+greenlet                3.5.6     MIT AND PSF-2.0               https://pypi.org/project/greenlet/
+h11                     0.16.0    MIT                           https://pypi.org/project/h11/
+httpcore                1.0.9     BSD-3-Clause                  https://pypi.org/project/httpcore/
+httpx                   0.28.1    BSD-3-Clause                  https://pypi.org/project/httpx/
+idna                    3.20      BSD-3-Clause                  https://pypi.org/project/idna/
+Mako                    1.4.3     MIT                           https://pypi.org/project/mako/
+MarkupSafe              3.0.3     BSD-3-Clause                  https://pypi.org/project/MarkupSafe/
+msgpack                 1.2.2     Apache-2.0                    https://pypi.org/project/msgpack/
+oauthlib                3.3.1     BSD-3-Clause                  https://pypi.org/project/oauthlib/
+pydantic                2.13.5    MIT                           https://pypi.org/project/pydantic/
+pydantic-core           2.46.5    MIT                           https://pypi.org/project/pydantic-core/
+pydantic-settings       2.15.0    MIT                           https://pypi.org/project/pydantic-settings/
+python-dotenv           1.2.3     BSD-3-Clause                  https://pypi.org/project/python-dotenv/
+python-multipart        0.0.32    Apache-2.0                    https://pypi.org/project/python-multipart/
+repath                  0.9.0     MIT                           https://pypi.org/project/repath/
+six                     1.17.0    MIT                           https://pypi.org/project/six/
+SQLAlchemy              2.0.54    MIT                           https://pypi.org/project/SQLAlchemy/
+starlette               1.6.0     BSD-3-Clause                  https://pypi.org/project/starlette/
+typing-extensions       4.16.0    PSF-2.0                       https://pypi.org/project/typing-extensions/
+typing-inspection       0.4.4     MIT                           https://pypi.org/project/typing-inspection/
+uvicorn                 0.53.0    BSD-3-Clause                  https://pypi.org/project/uvicorn/
+
+The packaged Python runtime retains each dependency's own LICENSE, COPYING,
+NOTICE, and copyright files under site-packages when they are supplied by the
+upstream distribution. Flet and the Flutter/native runtime also provide their
+license and attribution texts in data/flutter_assets/NOTICES.Z. These files
+must remain in any redistributed build.
+
+When producing a release from a newly resolved dependency set, regenerate this
+index from the final bundle and keep its versions synchronized with the files
+actually shipped. Do not remove upstream license or attribution files.

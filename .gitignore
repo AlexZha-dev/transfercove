@@ -1,3 +1,13 @@
 venv/
-__pycashe__/
+__pycache__/
+.pytest_cache/
 .env
+.data/
+.tmp-pytest-*/
+build/
+installer/*
+!installer/windows/
+!installer/windows/TransferCove.iss
+dist/
+.tmp-pytest-run/
+.flet-data/
