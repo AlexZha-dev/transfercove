@@ -272,7 +272,14 @@ function uploadFile(item, index) {
         return;
       }
 
-      rejectUpload(t("serverError", { status: xhr.status }));
+      let serverMessage = t("serverError", { status: xhr.status });
+      try {
+        const payload = JSON.parse(xhr.responseText);
+        if (payload.detail) serverMessage = `${serverMessage} — ${payload.detail}`;
+      } catch (_error) {
+        // Keep the generic status message when the server did not return JSON.
+      }
+      rejectUpload(serverMessage);
     });
 
     xhr.addEventListener("error", () => {

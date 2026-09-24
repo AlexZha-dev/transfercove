@@ -1,17 +1,20 @@
+import logging
 from time import perf_counter
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_session
-from app.services.file_service import FileService
+from app.services.file_service import FileService, FileUploadError
 
 files_router = APIRouter(prefix="/files", tags=["files"])
+logger = logging.getLogger(__name__)
 
 
 SessionDependency = Annotated[AsyncSession, Depends(get_session)]
+
 
 @files_router.post("")
 async def upload_file(
@@ -19,12 +22,19 @@ async def upload_file(
     session: SessionDependency,
     request: Request,
 ):
-    service = FileService(
-        session=session,
-        storage_dir=request.app.state.settings.transmitter.storage_dir,
-    )
+    storage_dir = request.app.state.settings.transmitter.storage_dir
 
-    record = await service.upload(file)
+    try:
+        service = FileService(session=session, storage_dir=storage_dir)
+        record = await service.upload(file)
+    except FileUploadError as error:
+        logger.error(
+            "Upload request failed: filename=%r storage_dir=%s reason=%s",
+            file.filename,
+            storage_dir,
+            error,
+        )
+        raise HTTPException(status_code=500, detail=str(error)) from error
 
     duration = max(perf_counter() - request.state.started_at, 0.000001)
     speed = record.size_bytes / duration

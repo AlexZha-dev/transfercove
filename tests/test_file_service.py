@@ -9,7 +9,7 @@ from starlette.datastructures import Headers, UploadFile
 
 from app.core.db import Database
 from app.models.file import FileRecord
-from app.services.file_service import FileService
+from app.services.file_service import FileService, FileUploadError
 
 
 def run(coroutine):
@@ -64,7 +64,7 @@ def test_file_service_removes_partial_file_when_repository_fails(tmp_path: Path)
                 raise RuntimeError("database unavailable")
 
             service.repository.create = fail_create
-            with pytest.raises(RuntimeError, match="database unavailable"):
+            with pytest.raises(FileUploadError, match="database unavailable"):
                 await service.upload(upload)
 
         await database.dispose()
@@ -74,3 +74,19 @@ def test_file_service_removes_partial_file_when_repository_fails(tmp_path: Path)
 
     assert list(storage_dir.iterdir()) == []
     assert upload.file.closed
+
+
+def test_file_service_reports_unavailable_storage_directory(tmp_path: Path) -> None:
+    async def scenario() -> None:
+        database = Database(
+            f"sqlite+aiosqlite:///{(tmp_path / 'storage-error.db').as_posix()}"
+        )
+        storage_path = tmp_path / "not-a-directory"
+        storage_path.write_bytes(b"a file, not a directory")
+
+        with pytest.raises(FileUploadError, match="Cannot create or access"):
+            FileService(None, storage_path)  # type: ignore[arg-type]
+
+        await database.dispose()
+
+    run(scenario())

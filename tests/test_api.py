@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
+
+from app.services.file_service import FileService, FileUploadError
 
 
 def test_health_endpoint_reports_ready(client: TestClient) -> None:
@@ -49,3 +52,37 @@ def test_upload_endpoint_requires_a_file(client: TestClient) -> None:
     response = client.post("/v1/files", data={})
 
     assert response.status_code == 422
+
+
+def test_upload_endpoint_returns_upload_failure_details(
+    client: TestClient, monkeypatch
+) -> None:
+    async def fail_upload(_service, _upload):
+        raise FileUploadError(
+            "Cannot write uploaded file: PermissionError: access denied"
+        )
+
+    monkeypatch.setattr(FileService, "upload", fail_upload)
+
+    response = client.post(
+        "/v1/files",
+        files={"file": ("blocked.txt", b"content", "text/plain")},
+    )
+
+    assert response.status_code == 500
+    assert response.json() == {
+        "detail": "Cannot write uploaded file: PermissionError: access denied"
+    }
+
+
+def test_api_documentation_is_disabled_in_packaged_build(
+    app_settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("FLET_APP_CONSOLE", "C:/Temp/TransferCove/console.log")
+    from app.application import create_app
+
+    application = create_app(app_settings)
+    with TestClient(application) as packaged_client:
+        assert packaged_client.get("/docs").status_code == 404
+        assert packaged_client.get("/redoc").status_code == 404
+        assert packaged_client.get("/openapi.json").status_code == 404
