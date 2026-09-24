@@ -23,6 +23,7 @@ class MainPage:
     def __init__(self, page: ft.Page) -> None:
         self.page = page
         self.controller = AppController()
+        self.file_picker = ft.FilePicker()
         self.content = ft.Container(expand=True)
         self.current_view: View | None = None
         self.active_route = "home"
@@ -94,6 +95,7 @@ class MainPage:
         self.page.window.min_height = 600
         self.page.window.icon = str(ASSETS_DIR / "icon.ico")
         self.page.on_resize = self.resize
+        self.page.services.append(self.file_picker)
 
         await self.controller.initialize()
         self.controller.subscribe(self.refresh_current_view)
@@ -237,7 +239,9 @@ class MainPage:
     def show_settings(self, _=None) -> None:
         self.dispose_current_view()
         self.active_route = "settings"
-        self.current_view = SettingsPage(self.controller, self.show_home, self.page)
+        self.current_view = SettingsPage(
+            self.controller, self.show_home, self.page, self.file_picker
+        )
         self.mount_view()
 
     def mount_view(self) -> None:

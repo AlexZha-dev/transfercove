@@ -1,4 +1,3 @@
-import asyncio
 from pathlib import Path
 
 import flet as ft
@@ -23,10 +22,19 @@ from app.core.theme import (
 
 
 class SettingsPage:
-    def __init__(self, controller: AppController, go_back, page: ft.Page) -> None:
+    def __init__(
+        self,
+        controller: AppController,
+        go_back,
+        page: ft.Page,
+        file_picker: ft.FilePicker | None = None,
+    ) -> None:
         self.controller = controller
         self.go_back = go_back
         self.page = page
+        self.file_picker = file_picker or ft.FilePicker()
+        if file_picker is None:
+            self.page.services.append(self.file_picker)
         settings = controller.settings
 
         self.app_title = ft.Text(
@@ -51,15 +59,11 @@ class SettingsPage:
             expand=2,
             keyboard_type=ft.KeyboardType.NUMBER,
         )
-        self.log_level = text_field("Log level", settings.uvicorn.log_level)
         self.reload = ft.Switch(value=settings.uvicorn.reload, tooltip="Server reload")
         self.storage_path = text_field(
             "Storage directory",
             str(settings.transmitter.storage_dir),
             expand=True,
-        )
-        self.database_url = text_field(
-            "Database URL", settings.transmitter.database_url
         )
         self.language = ft.Dropdown(
             label="Language",
@@ -125,7 +129,6 @@ class SettingsPage:
                                     ft.Icons.ROUTER_ROUNDED,
                                     [
                                         ft.Row([self.host, self.port], spacing=12),
-                                        self.log_level,
                                         self.toggle_row(
                                             "Server reload",
                                             "Applies when running the server separately.",
@@ -159,7 +162,6 @@ class SettingsPage:
                                             ],
                                             spacing=8,
                                         ),
-                                        self.database_url,
                                         ft.Text(
                                             "New uploads are saved to this folder.",
                                             size=12,
@@ -312,18 +314,18 @@ class SettingsPage:
         self.message.visible = False
         self.page.update()
         try:
+            current_settings = self.controller.settings
             settings = Settings(
-                app=self.controller.settings.app.model_copy(deep=True),
+                app=current_settings.app.model_copy(deep=True),
                 uvicorn=UvicornConfig(
                     host=self.host.value or "127.0.0.1",
                     port=int(self.port.value or "8000"),
-                    log_level=self.log_level.value or "info",
+                    log_level=current_settings.uvicorn.log_level,
                     reload=self.reload.value,
                 ),
                 transmitter=TransmitterSettings(
                     storage_dir=Path(self.storage_path.value or ".data/files"),
-                    database_url=self.database_url.value
-                    or "sqlite+aiosqlite:///./.data/files.db",
+                    database_url=current_settings.transmitter.database_url,
                 ),
                 desktop=DesktopConfig(
                     language=self.language.value or "en",
@@ -362,43 +364,41 @@ class SettingsPage:
             self.page.update()
             return
 
-        current_path = Path(self.storage_path.value or ".").expanduser()
-        initial_directory = (
-            current_path if current_path.is_dir() else current_path.parent
-        )
+        initial_directory = self._get_initial_directory(self.storage_path.value)
 
-        selected_path = await asyncio.to_thread(
-            self._select_directory,
-            initial_directory.resolve(),
-        )
+        try:
+            selected_path = await self.file_picker.get_directory_path(
+                dialog_title="Select storage directory",
+                initial_directory=initial_directory,
+            )
+        except ft.FletUnsupportedPlatformException:
+            self.message.value = "Directory picker is not supported on this platform."
+            self.message.color = COLORS["warning"]
+            self.message.visible = True
+            self.page.update()
+            return
 
         if selected_path:
-            self.storage_path.value = str(selected_path)
+            self.storage_path.value = selected_path
             self.page.update()
 
     @staticmethod
-    def _select_directory(initial_directory: Path) -> Path | None:
-        try:
-            import tkinter as tk
-            from tkinter import filedialog
-        except ImportError:
-            return None
+    def _get_initial_directory(storage_path: str | None) -> str | None:
+        current_path = Path(storage_path or ".").expanduser()
+        candidates = [
+            current_path if current_path.is_dir() else current_path.parent,
+            Path.home(),
+            Path.cwd(),
+        ]
 
-        try:
-            root = tk.Tk()
-            root.withdraw()
-            root.attributes("-topmost", True)
+        for candidate in candidates:
             try:
-                selected_path = filedialog.askdirectory(
-                    title="Select storage directory",
-                    initialdir=str(initial_directory),
-                )
-            finally:
-                root.destroy()
-        except OSError, RuntimeError, tk.TclError:
-            return None
+                if candidate.is_dir():
+                    return str(candidate.resolve())
+            except OSError:
+                continue
 
-        return Path(selected_path) if selected_path else None
+        return None
 
     def dispose(self) -> None:
         """Release page-specific resources before switching views."""

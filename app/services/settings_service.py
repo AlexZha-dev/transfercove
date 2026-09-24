@@ -1,4 +1,7 @@
 from pathlib import Path
+from typing import cast
+
+from sqlalchemy.sql.schema import Table
 
 from app.core.db import Database
 from app.core.settings import Settings
@@ -11,7 +14,9 @@ class SettingsService:
         self.database = database
 
     async def initialize(self, fallback: Settings) -> Settings:
-        await self.database.create_table(ApplicationSettingsRecord.__table__)
+        await self.database.create_table(
+            cast(Table, ApplicationSettingsRecord.__table__)
+        )
 
         async with self.database.transaction() as session:
             repository = SettingsRepository(session)
@@ -28,7 +33,17 @@ class SettingsService:
             ):
                 record.storage_dir = str(fallback.transmitter.storage_dir)
 
-            return record.to_settings()
+            saved = record.to_settings()
+            return saved.model_copy(
+                update={
+                    "uvicorn": saved.uvicorn.model_copy(
+                        update={"log_level": fallback.uvicorn.log_level}
+                    ),
+                    "transmitter": saved.transmitter.model_copy(
+                        update={"database_url": fallback.transmitter.database_url}
+                    ),
+                }
+            )
 
     async def save(self, settings: Settings) -> Settings:
         async with self.database.transaction() as session:
