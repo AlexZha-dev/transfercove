@@ -4,6 +4,11 @@ from typing import Protocol
 import flet as ft
 
 from app.controller.controller import AppController
+from app.core.security import (
+    SECURITY_NOTICE_DETAILS,
+    SECURITY_NOTICE_PREFERENCE_KEY,
+    SECURITY_NOTICE_TITLE,
+)
 from app.core.theme import ASSETS_DIR, COLORS, app_theme, brand_icon, eyebrow
 from app.server.manager import ServerState
 from app.view.home_page import HomePage
@@ -24,9 +29,11 @@ class MainPage:
         self.page = page
         self.controller = AppController()
         self.file_picker = ft.FilePicker()
+        self.security_preferences = ft.SharedPreferences()
         self.content = ft.Container(expand=True)
         self.current_view: View | None = None
         self.active_route = "home"
+        self._start_after_security_acknowledgement = False
         self.route_title = ft.Text("Dashboard", size=13, color=COLORS["text"])
         self.connection_text = ft.Text(size=11, weight=ft.FontWeight.W_600)
         self.connection_dot = ft.Container(width=6, height=6, border_radius=3)
@@ -96,6 +103,7 @@ class MainPage:
         self.page.window.icon = str(ASSETS_DIR / "icon.ico")
         self.page.on_resize = self.resize
         self.page.services.append(self.file_picker)
+        self.page.services.append(self.security_preferences)
 
         await self.controller.initialize()
         self.controller.subscribe(self.refresh_current_view)
@@ -113,10 +121,99 @@ class MainPage:
         self.show_home()
         self.resize()
 
-        if self.controller.settings.desktop.auto_start:
-            started = await self.controller.start_server()
-            if started and self.controller.settings.desktop.open_browser:
-                webbrowser.open(self.controller.server_url)
+        if await self.security_notice_was_acknowledged():
+            await self.start_server_automatically()
+        else:
+            self.show_security_notice()
+
+    async def security_notice_was_acknowledged(self) -> bool:
+        """Return whether this user has acknowledged the security limitations."""
+
+        try:
+            acknowledged = await self.security_preferences.get(
+                SECURITY_NOTICE_PREFERENCE_KEY
+            )
+        except ft.FletUnsupportedPlatformException:
+            return False
+        return acknowledged is True
+
+    def show_security_notice(self) -> None:
+        """Show the first-run acknowledgement before an automatic server start."""
+
+        self._start_after_security_acknowledgement = (
+            self.controller.settings.desktop.auto_start
+        )
+        dialog = ft.AlertDialog(
+            modal=True,
+            icon=ft.Icon(
+                ft.Icons.WARNING_AMBER_ROUNDED,
+                color=COLORS["warning"],
+                size=30,
+            ),
+            title=ft.Text(SECURITY_NOTICE_TITLE),
+            content=ft.Container(
+                content=ft.Column(
+                    controls=[
+                        ft.Text(
+                            SECURITY_NOTICE_DETAILS,
+                            size=13,
+                            color=COLORS["muted_bright"],
+                        ),
+                        ft.Container(
+                            content=ft.Text(
+                                "Continue only if you understand these limitations.",
+                                size=12,
+                                color=COLORS["warning"],
+                                weight=ft.FontWeight.W_600,
+                            ),
+                            padding=12,
+                            bgcolor="#30201D",
+                            border=ft.Border.all(1, "#5B3930"),
+                            border_radius=10,
+                        ),
+                    ],
+                    tight=True,
+                    spacing=16,
+                ),
+                width=500,
+            ),
+            actions=[
+                ft.Button(
+                    "I understand",
+                    icon=ft.Icons.CHECK_ROUNDED,
+                    style=button_style(primary=True),
+                    on_click=self.acknowledge_security_notice,
+                )
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+            semantics_label="TransferCove security notice",
+        )
+        self.page.show_dialog(dialog)
+
+    async def acknowledge_security_notice(self, _) -> None:
+        """Persist acknowledgement and continue any configured automatic start."""
+
+        try:
+            await self.security_preferences.set(
+                SECURITY_NOTICE_PREFERENCE_KEY, True
+            )
+        except ft.FletUnsupportedPlatformException:
+            # The dialog is still informative on a platform without persistence.
+            pass
+
+        self.page.pop_dialog()
+        await self.start_server_automatically()
+
+    async def start_server_automatically(self) -> None:
+        if not self._start_after_security_acknowledgement and not (
+            self.controller.settings.desktop.auto_start
+        ):
+            return
+
+        self._start_after_security_acknowledgement = False
+        started = await self.controller.start_server()
+        if started and self.controller.settings.desktop.open_browser:
+            webbrowser.open(self.controller.server_url)
 
     def build_sidebar(self) -> ft.Container:
         self.brand_text = ft.Column(

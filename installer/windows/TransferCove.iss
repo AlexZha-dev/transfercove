@@ -1,6 +1,6 @@
 ; TransferCove Windows installer for Inno Setup 6+
 ; Build the Flet application first:
-;   poetry run flet build windows --yes
+;   poetry run flet build windows --yes --build-version 0.2.3
 ; Then compile this file with Inno Setup Compiler.
 
 #define MyAppName "TransferCove"
@@ -28,7 +28,8 @@ OutputBaseFilename=TransferCove-Setup-{#MyAppVersion}
 SetupIconFile=..\..\assets\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 LicenseFile=..\..\LICENSE
-InfoBeforeFile=..\..\THIRD-PARTY-NOTICES.txt
+InfoBeforeFile=SECURITY-NOTICE.txt
+InfoAfterFile=..\..\THIRD-PARTY-NOTICES.txt
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -43,6 +44,7 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 Source: "{#BuildDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\THIRD-PARTY-NOTICES.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "SECURITY-NOTICE.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

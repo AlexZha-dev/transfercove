@@ -5,6 +5,7 @@ from pydantic import ValidationError
 
 from app.controller.controller import AppController
 from app.core.network import get_lan_ipv4
+from app.core.security import SECURITY_NOTICE_DETAILS, SECURITY_NOTICE_TITLE
 from app.core.settings import (
     DesktopConfig,
     Settings,
@@ -214,6 +215,37 @@ class SettingsPage:
                                             run_spacing=10,
                                             wrap=True,
                                         ),
+                                    ],
+                                ),
+                                self.settings_section(
+                                    "Security",
+                                    "Important limitations before sharing files.",
+                                    ft.Icons.WARNING_AMBER_ROUNDED,
+                                    [
+                                        ft.Container(
+                                            content=ft.Row(
+                                                controls=[
+                                                    ft.Icon(
+                                                        ft.Icons.WARNING_AMBER_ROUNDED,
+                                                        size=20,
+                                                        color=COLORS["warning"],
+                                                    ),
+                                                    ft.Text(
+                                                        f"{SECURITY_NOTICE_TITLE}: "
+                                                        f"{SECURITY_NOTICE_DETAILS}",
+                                                        size=12,
+                                                        color=COLORS["muted_bright"],
+                                                        expand=True,
+                                                    ),
+                                                ],
+                                                spacing=12,
+                                                vertical_alignment=ft.CrossAxisAlignment.START,
+                                            ),
+                                            padding=16,
+                                            bgcolor="#261A17",
+                                            border=ft.Border.all(1, "#5B3930"),
+                                            border_radius=12,
+                                        )
                                     ],
                                 ),
                             ],

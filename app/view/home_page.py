@@ -4,6 +4,7 @@ import flet as ft
 
 from app.controller.controller import AppController
 from app.core.qr import make_qr_svg
+from app.core.security import SECURITY_NOTICE_SUMMARY, SECURITY_NOTICE_TITLE
 from app.core.theme import (
     COLORS,
     button_style,
@@ -159,6 +160,47 @@ class HomePage:
             end=ft.Alignment.BOTTOM_RIGHT,
             colors=["#142D1E", "#0E1D15", "#10271A"],
         )
+        security_notice = ft.Container(
+            content=ft.Row(
+                controls=[
+                    ft.Container(
+                        content=ft.Icon(
+                            ft.Icons.WARNING_AMBER_ROUNDED,
+                            size=22,
+                            color=COLORS["warning"],
+                        ),
+                        width=42,
+                        height=42,
+                        alignment=ft.Alignment.CENTER,
+                        bgcolor="#3A261F",
+                        border_radius=12,
+                    ),
+                    ft.Column(
+                        controls=[
+                            ft.Text(
+                                SECURITY_NOTICE_TITLE,
+                                size=13,
+                                weight=ft.FontWeight.W_600,
+                                color=COLORS["text"],
+                            ),
+                            ft.Text(
+                                SECURITY_NOTICE_SUMMARY,
+                                size=12,
+                                color=COLORS["muted_bright"],
+                            ),
+                        ],
+                        spacing=4,
+                        expand=True,
+                    ),
+                ],
+                spacing=12,
+                vertical_alignment=ft.CrossAxisAlignment.START,
+            ),
+            padding=16,
+            bgcolor="#261A17",
+            border=ft.Border.all(1, "#5B3930"),
+            border_radius=16,
+        )
 
         self.root = ft.Column(
             controls=[
@@ -186,6 +228,7 @@ class HomePage:
                     ],
                     spacing=12,
                 ),
+                security_notice,
                 server_card,
                 ft.Row(
                     controls=[
