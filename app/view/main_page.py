@@ -9,7 +9,14 @@ from app.core.security import (
     SECURITY_NOTICE_PREFERENCE_KEY,
     SECURITY_NOTICE_TITLE,
 )
-from app.core.theme import ASSETS_DIR, COLORS, app_theme, brand_icon, eyebrow
+from app.core.theme import (
+    ASSETS_DIR,
+    COLORS,
+    app_theme,
+    brand_icon,
+    button_style,
+    eyebrow,
+)
 from app.server.manager import ServerState
 from app.view.home_page import HomePage
 from app.view.settings_page import SettingsPage
