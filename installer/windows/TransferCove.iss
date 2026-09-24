@@ -4,7 +4,7 @@
 ; Then compile this file with Inno Setup Compiler.
 
 #define MyAppName "TransferCove"
-#define MyAppVersion "0.2.0"
+#define MyAppVersion "0.2.2"
 #define MyAppPublisher "AlexZha-dev"
 #define MyAppURL "https://github.com/AlexZha-dev/WIFI-trancmitor"
 #define MyAppExeName "TransferCove.exe"

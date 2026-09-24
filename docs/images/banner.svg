@@ -29,7 +29,7 @@
       <text x="54" y="259" fill="#8DA697" font-size="18">Transfer files between devices over Wi-Fi.</text>
       <text x="54" y="288" fill="#8DA697" font-size="18">Control it from your desktop. Send from a browser.</text>
       <text x="54" y="375" fill="#B6CBBD" font-size="13" letter-spacing="1">PYTHON 3.14+ <tspan fill="#375A43"> / </tspan> FLET <tspan fill="#375A43"> / </tspan> FASTAPI <tspan fill="#375A43"> / </tspan> SQLITE</text>
-      <text x="1224" y="375" text-anchor="end" fill="#6EF0A0" font-size="13">v0.2.0</text>
+      <text x="1224" y="375" text-anchor="end" fill="#6EF0A0" font-size="13">v0.2.2</text>
     </g>
     <g transform="translate(964 104) scale(3)">
       <rect x=".75" y=".75" width="62.5" height="62.5" rx="16" fill="url(#tile)" stroke="#3B684A" stroke-width="1.5"/>

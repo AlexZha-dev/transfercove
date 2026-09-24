@@ -94,8 +94,8 @@ Desktop preferences are stored between launches. When the server is started from
 
 | Section | Controls |
 | :--- | :--- |
-| Connection | Bind host, port, log level, and reload for a separately launched server |
-| Storage | Destination folder for received files and the database URL |
+| Connection | Bind host, port, and reload for a separately launched server |
+| Storage | Destination folder for received files |
 | Desktop | Language preference, automatic server start, and browser opening behavior |
 | About this app | Application title, description, version, and debug state — read-only information |
 
@@ -127,7 +127,7 @@ DESKTOP__AUTO_START=False
 DESKTOP__OPEN_BROWSER=True
 ```
 
-The desktop app uses `.env` as its initial configuration, then loads saved preferences from its SQLite settings database. When running from source without `FLET_APP_STORAGE_DATA`, the desktop settings database is stored under `.flet-data/data/desktop-settings.db`. The standalone web server reads its configuration from `.env` and environment variables.
+The desktop app uses `.env` as its initial configuration, then loads saved preferences from its SQLite settings database. On Windows builds, Flet stores application data under `%APPDATA%\TransferCove\data`; the first launch after the storage-path change copies data from the old `Your Company\TransferCove` location without overwriting newer files. When running from source without `FLET_APP_STORAGE_DATA`, the desktop settings database is stored under `.flet-data/data/desktop-settings.db`. The standalone web server reads its configuration from `.env` and environment variables.
 
 `APP__*` variables describe the application and are intentionally not editable through the interface.
 
@@ -200,10 +200,21 @@ poetry run python tools/export_brand.py
 Build the Windows desktop package on Windows:
 
 ```bash
-poetry run flet build windows
+poetry run flet build windows --yes
 ```
 
-Flet reads the application icon from `assets/icon.png`; the build entry point and local-data exclusions are configured in `pyproject.toml`. A Windows build also requires Flutter and the C++ desktop tools from Visual Studio. See the [Flet Windows publishing guide](https://flet.dev/docs/publish/windows/) for the platform prerequisites.
+Flet reads the application icon from `assets/icon.png`; the build entry point, artifact name, and local-data exclusions are configured in `pyproject.toml`. A Windows build also requires Flutter and the C++ desktop tools from Visual Studio. See the [Flet Windows publishing guide](https://flet.dev/docs/publish/windows/) for the platform prerequisites.
+
+### Windows installer and license notices
+
+The repository includes an Inno Setup script at [`installer/windows/TransferCove.iss`](installer/windows/TransferCove.iss). After building the Flet application, open the script with Inno Setup Compiler to create `dist/installer/TransferCove-Setup-0.2.2.exe`:
+
+```text
+poetry run flet build windows --yes
+iscc installer/windows/TransferCove.iss
+```
+
+The installer displays the MIT license, installs [`LICENSE`](LICENSE) and [`THIRD-PARTY-NOTICES.txt`](THIRD-PARTY-NOTICES.txt), and preserves the dependency license metadata shipped in the Flet bundle. The generated installer should be digitally signed before public distribution; signing is intentionally kept outside the repository so certificates and passwords are never committed. If dependency versions change during a rebuild, update `THIRD-PARTY-NOTICES.txt` from the final bundle before publishing the installer.
 
 ### Current project boundaries
 
