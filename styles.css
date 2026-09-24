@@ -74,6 +74,14 @@ button { cursor: pointer; }
 .nav-links a:hover, .topbar-link:hover, .footer a:hover { color: var(--green); }
 .topbar-link { display: inline-flex; align-items: center; gap: 7px; color: var(--green); }
 
+.security-warning { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 18px; padding: 18px 20px; background: linear-gradient(105deg, rgba(84, 43, 28, .72), rgba(47, 28, 22, .7)); border: 1px solid rgba(255, 189, 149, .38); border-radius: var(--radius-md); box-shadow: 0 16px 45px rgba(0, 0, 0, .15); }
+.security-warning-icon { display: grid; width: 37px; height: 37px; place-items: center; color: #2a160d; background: var(--orange); border-radius: 11px; font-size: 20px; font-weight: 850; }
+.security-warning-copy { min-width: 0; }
+.warning-label { display: block; margin-bottom: 4px; color: var(--orange); font-size: 9px; font-weight: 850; letter-spacing: .14em; text-transform: uppercase; }
+.security-warning h2 { margin: 0 0 5px; color: #ffe0cd; font-size: 16px; letter-spacing: -.025em; }
+.security-warning p { max-width: 780px; margin: 0; color: #d8b9a9; font-size: 11px; line-height: 1.6; }
+.security-warning-tag { padding: 7px 10px; color: var(--orange); border: 1px solid rgba(255, 189, 149, .28); border-radius: 99px; font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
+
 .hero { display: grid; grid-template-columns: minmax(0, .91fr) minmax(460px, 1.09fr); align-items: center; gap: 62px; min-height: 670px; padding: 76px 0 100px; }
 .hero-copy { position: relative; z-index: 1; }
 .eyebrow { display: inline-flex; align-items: center; gap: 9px; color: var(--green); font-size: 10px; font-weight: 850; letter-spacing: .15em; line-height: 1.4; text-transform: uppercase; }
@@ -239,6 +247,8 @@ h1 span, h2 span { color: var(--green); }
   .topbar { min-height: 76px; }
   .nav-links { display: none; }
   .topbar-link { margin-left: auto; font-size: 11px; }
+  .security-warning { grid-template-columns: auto minmax(0, 1fr); gap: 13px; padding: 16px; }
+  .security-warning-tag { grid-column: 2; justify-self: start; }
   .hero { min-height: 0; padding: 57px 0 68px; }
   h1 { font-size: clamp(48px, 14vw, 72px); }
   .hero-lede { font-size: 14px; }
