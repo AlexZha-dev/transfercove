@@ -5,6 +5,7 @@
   if (!dialog || typeof dialog.showModal !== "function" || !screenshots.length) return;
 
   const image = dialog.querySelector(".dialog-image");
+  const imageViewport = dialog.querySelector(".dialog-image-wrap");
   const caption = dialog.querySelector("#image-caption");
   const counter = dialog.querySelector(".dialog-counter");
   const original = dialog.querySelector(".dialog-original");
@@ -15,8 +16,13 @@
   function showScreenshot(index) {
     activeIndex = (index + screenshots.length) % screenshots.length;
     const link = screenshots[activeIndex];
+    const sourceImage = link.querySelector("img");
+    image.width = Number(sourceImage.getAttribute("width"));
+    image.height = Number(sourceImage.getAttribute("height"));
     image.src = link.href;
-    image.alt = link.querySelector("img").alt;
+    image.alt = sourceImage.alt;
+    imageViewport.scrollTop = 0;
+    imageViewport.scrollLeft = 0;
     caption.textContent = link.dataset.caption;
     counter.textContent = `${activeIndex + 1} / ${screenshots.length}`;
     original.href = link.href;
