@@ -27,6 +27,8 @@ class SettingsService:
                 session.add(record)
                 return fallback
 
+            record.app_version = fallback.app.version
+
             if (
                 not Path(record.storage_dir).is_absolute()
                 and fallback.transmitter.storage_dir.is_absolute()
