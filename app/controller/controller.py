@@ -1,5 +1,6 @@
 from collections.abc import Callable
 
+from app.core.network import get_lan_ipv4
 from app.core.settings import Settings
 from app.core.settings_store import SettingsStore
 from app.server.manager import ServerError, ServerManager, ServerState
@@ -21,10 +22,17 @@ class AppController:
         self.notify()
 
     @property
+    def advertised_host(self) -> str:
+        """Return the address that another device can use to reach the server."""
+
+        host = self.settings.uvicorn.host.strip()
+        if host.lower() in {"", "0.0.0.0", "*", "::"}:
+            return get_lan_ipv4() or "127.0.0.1"
+        return host
+
+    @property
     def server_url(self) -> str:
-        host = self.settings.uvicorn.host
-        display_host = "127.0.0.1" if host in {"0.0.0.0", "::"} else host
-        return f"http://{display_host}:{self.settings.uvicorn.port}/"
+        return f"http://{self.advertised_host}:{self.settings.uvicorn.port}/"
 
     @property
     def health_url(self) -> str:

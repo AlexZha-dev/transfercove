@@ -4,6 +4,7 @@ import flet as ft
 from pydantic import ValidationError
 
 from app.controller.controller import AppController
+from app.core.network import get_lan_ipv4
 from app.core.settings import (
     DesktopConfig,
     Settings,
@@ -60,6 +61,13 @@ class SettingsPage:
             keyboard_type=ft.KeyboardType.NUMBER,
         )
         self.reload = ft.Switch(value=settings.uvicorn.reload, tooltip="Server reload")
+        self.detect_host_button = ft.Button(
+            "Use current LAN address",
+            icon=ft.Icons.LAN_ROUNDED,
+            style=button_style(),
+            height=42,
+            on_click=self.use_lan_address,
+        )
         self.storage_path = text_field(
             "Storage directory",
             str(settings.transmitter.storage_dir),
@@ -129,6 +137,12 @@ class SettingsPage:
                                     ft.Icons.ROUTER_ROUNDED,
                                     [
                                         ft.Row([self.host, self.port], spacing=12),
+                                        self.detect_host_button,
+                                        ft.Text(
+                                            "Use this when other devices should connect over the same local network.",
+                                            size=12,
+                                            color=COLORS["muted"],
+                                        ),
                                         self.toggle_row(
                                             "Server reload",
                                             "Applies when running the server separately.",
@@ -352,6 +366,22 @@ class SettingsPage:
             self.save_button.content = "Save changes"
             self.message.visible = True
             self.page.update()
+
+    def use_lan_address(self, _):
+        address = get_lan_ipv4()
+        if address is None:
+            self.message.value = (
+                "Could not detect a private LAN IPv4 address. Check your network connection."
+            )
+            self.message.color = COLORS["warning"]
+        else:
+            self.host.value = address
+            self.message.value = (
+                f"LAN address {address} inserted. Save settings to apply it."
+            )
+            self.message.color = COLORS["primary"]
+        self.message.visible = True
+        self.page.update()
 
     async def choose_directory(self, _):
         if self.page.web:

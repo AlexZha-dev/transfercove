@@ -233,7 +233,7 @@ class MainPage:
     def show_home(self, _=None) -> None:
         self.dispose_current_view()
         self.active_route = "home"
-        self.current_view = HomePage(self.controller, self.show_settings)
+        self.current_view = HomePage(self.controller, self.show_settings, self.page)
         self.mount_view()
 
     def show_settings(self, _=None) -> None:

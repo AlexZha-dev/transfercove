@@ -3,6 +3,7 @@ import webbrowser
 import flet as ft
 
 from app.controller.controller import AppController
+from app.core.qr import make_qr_svg
 from app.core.theme import (
     COLORS,
     button_style,
@@ -15,9 +16,10 @@ from app.server.manager import ServerState
 
 
 class HomePage:
-    def __init__(self, controller: AppController, open_settings) -> None:
+    def __init__(self, controller: AppController, open_settings, page: ft.Page) -> None:
         self.controller = controller
         self.open_settings = open_settings
+        self.page = page
 
         self.status = ft.Text(size=11, weight=ft.FontWeight.W_600)
         self.status_dot = ft.Container(width=6, height=6, border_radius=3)
@@ -57,6 +59,18 @@ class HomePage:
             style=button_style(),
             height=46,
             disabled=True,
+        )
+        self.copy_link_button = ft.IconButton(
+            icon=ft.Icons.CONTENT_COPY_ROUNDED,
+            icon_color=COLORS["primary"],
+            tooltip="Copy upload link",
+            on_click=self.copy_link,
+        )
+        self.qr_code_button = ft.IconButton(
+            icon=ft.Icons.QR_CODE_ROUNDED,
+            icon_color=COLORS["primary"],
+            tooltip="Show QR code",
+            on_click=self.show_qr_code,
         )
         self.signal_icon = ft.Icon(
             ft.Icons.WIFI_ROUNDED, size=52, color=COLORS["primary"]
@@ -104,6 +118,8 @@ class HomePage:
                                                     color=COLORS["muted"],
                                                 ),
                                                 ft.Container(self.url, expand=True),
+                                                self.copy_link_button,
+                                                self.qr_code_button,
                                             ],
                                             spacing=10,
                                         ),
@@ -186,9 +202,9 @@ class HomePage:
                 ft.ResponsiveRow(
                     controls=[
                         self.detail_card(
-                            "Bind address",
+                            "Access address",
                             self.host_value,
-                            "Server network interface",
+                            "Use this address on another device",
                             ft.Icons.LAN_ROUNDED,
                             {"xs": 12, "sm": 6, "md": 4},
                         ),
@@ -385,19 +401,85 @@ class HomePage:
         if self.controller.server_running:
             webbrowser.open(self.controller.server_url)
 
+    async def copy_link(self, _):
+        try:
+            await self.page.clipboard.set(self.controller.server_url)
+        except ft.FletUnsupportedPlatformException:
+            self._show_snackbar(
+                "Clipboard is not available on this platform.", warning=True
+            )
+        else:
+            self._show_snackbar("Upload link copied to the clipboard.")
+
+    def show_qr_code(self, _):
+        url = self.controller.server_url
+        dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text("Scan to open the upload page"),
+            content=ft.Column(
+                [
+                    ft.Container(
+                        content=ft.Image(
+                            src=make_qr_svg(url),
+                            width=260,
+                            height=260,
+                            fit=ft.BoxFit.CONTAIN,
+                            semantics_label=f"QR code for {url}",
+                        ),
+                        padding=12,
+                        bgcolor="#FFFFFF",
+                        border_radius=12,
+                    ),
+                    ft.Text(
+                        url,
+                        size=12,
+                        color=COLORS["muted_bright"],
+                        selectable=True,
+                        text_align=ft.TextAlign.CENTER,
+                    ),
+                ],
+                tight=True,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            ),
+            actions=[
+                ft.TextButton("Copy link", on_click=self.copy_link),
+                ft.TextButton("Close", on_click=lambda _: self.page.pop_dialog()),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        self.page.show_dialog(dialog)
+
+    def _show_snackbar(self, message: str, *, warning: bool = False) -> None:
+        self.page.show_dialog(
+            ft.SnackBar(
+                message,
+                bgcolor=COLORS["warning"] if warning else COLORS["primary_dark"],
+                duration=2500,
+            )
+        )
+
     def refresh(self) -> None:
         settings = self.controller.settings
-        self.host_value.value = settings.uvicorn.host
+        self.host_value.value = self.controller.advertised_host
         self.port_value.value = str(settings.uvicorn.port)
         self.storage_value.value = str(settings.transmitter.storage_dir)
         self.storage_value.tooltip = str(settings.transmitter.storage_dir)
         self.url.value = self.controller.server_url
-        loopback = settings.uvicorn.host.lower() in {"127.0.0.1", "localhost", "::1"}
+        loopback = settings.uvicorn.host.strip().lower() in {
+            "127.0.0.1",
+            "localhost",
+            "::1",
+        }
         self.network_hint.value = (
-            "Currently available on this computer only. Change the bind host in Settings to accept files from other devices."
+            "Currently available on this computer only. Use the LAN address button in Settings to share with other devices."
             if loopback
             else "On another device, open this computer’s LAN address and port in a browser on the same network."
         )
+
+        if not loopback and self.controller.advertised_host == "127.0.0.1":
+            self.network_hint.value = (
+                "The LAN address could not be detected. Check your network connection or enter an address in Settings."
+            )
 
         state = self.controller.server_state
         label, headline, description, color = {

@@ -83,18 +83,18 @@ Desktop preferences are stored between launches. When the server is started from
 ## Send from another device
 
 1. Connect the devices to the same local network.
-2. In **Settings → Connection**, set **Bind host** to `0.0.0.0`, save the settings, and start the server.
-3. Find the receiving computer's IPv4 address. On Windows, it is shown by `ipconfig` for the active Wi-Fi or Ethernet adapter.
-4. On the other device, open an address such as `http://192.168.1.42:8000/`, replacing the IP address and port with yours.
+2. In **Settings → Connection**, click **Use current LAN address** and save the settings. The detected IPv4 address is inserted automatically.
+3. Start the server. The dashboard shows the shareable address and provides **Copy link** and **QR code** actions.
+4. On the other device, scan the QR code or open the copied link.
 5. Add files and select **Start upload**. They will appear in the folder configured under **Storage**.
 
-`0.0.0.0` is the server bind address, not the address to enter in a browser. `127.0.0.1` is reachable only from the receiving computer itself. If the connection fails, allow incoming connections to the selected port in the firewall for your private network.
+`0.0.0.0` is a server bind address, not an address to enter in a browser. `127.0.0.1` is reachable only from the receiving computer itself. If the connection fails, allow incoming connections to the selected port in the firewall for your private network. If the computer changes networks, use **Use current LAN address** again.
 
 ### Available settings
 
 | Section | Controls |
 | :--- | :--- |
-| Connection | Bind host, port, and reload for a separately launched server |
+| Connection | Bind host, automatic LAN address detection, port, and reload for a separately launched server |
 | Storage | Destination folder for received files |
 | Desktop | Language preference, automatic server start, and browser opening behavior |
 | About this app | Application title, description, version, and debug state — read-only information |
