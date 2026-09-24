@@ -1,6 +1,6 @@
 [project]
 name = "transfercove"
-version = "0.2.2"
+version = "0.2.3"
 description = "Desktop-controlled file transfers over your local network"
 license = "MIT"
 authors = [

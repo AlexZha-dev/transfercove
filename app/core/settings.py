@@ -24,7 +24,7 @@ def is_packaged_build() -> bool:
 class AppConfig(BaseModel):
     title: str = "TransferCove"
     description: str = "Application for sharing files over a local network"
-    version: str = "0.2.2"
+    version: str = "0.2.3"
     debug: bool = False
 
 

@@ -26,7 +26,7 @@ def test_settings_service_initializes_and_persists_preferences(tmp_path: Path) -
         first = await service.initialize(fallback)
         changed = first.model_copy(
             update={
-                "app": AppConfig(title="Saved title", version="0.2.2"),
+                "app": AppConfig(title="Saved title", version="0.2.3"),
                 "uvicorn": first.uvicorn.model_copy(update={"log_level": "debug"}),
                 "transmitter": first.transmitter.model_copy(
                     update={"database_url": "sqlite+aiosqlite:///saved.db"}
@@ -43,7 +43,7 @@ def test_settings_service_initializes_and_persists_preferences(tmp_path: Path) -
 
     assert first.app.title == "First title"
     assert loaded.app.title == "Saved title"
-    assert loaded.app.version == "0.2.2"
+    assert loaded.app.version == "0.2.3"
     assert loaded.desktop.auto_start is True
     assert loaded.uvicorn.log_level == "warning"
     assert loaded.transmitter.database_url == "sqlite+aiosqlite:///first.db"

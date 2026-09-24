@@ -10,6 +10,12 @@ The computer receives files. A phone, tablet, or another computer sends them fro
 
 [Features](#features) · [Preview](#preview) · [Quick start](#quick-start) · [Connect another device](#connection) · [Development](#development)
 
+<br>
+
+![Version](https://img.shields.io/badge/version-0.2.3-1f8f55?style=flat-square)
+![Python](https://img.shields.io/badge/python-3.14%2B-3776AB?style=flat-square&logo=python&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-111827?style=flat-square)
+
 </div>
 
 <br>
@@ -30,38 +36,30 @@ The dark green interface adapts to the window size. The sending device only need
 
 ## One visual language. Two interfaces.
 
-### Desktop control center
-
-Server status and connection settings are available on one screen.
-
-<img src="docs/images/dashboard.png" width="100%" alt="TransferCove dashboard with a running server">
+The desktop app manages the receiver. Any modern browser can act as the sender.
 
 <table>
   <tr>
-    <td width="50%" valign="top">
-      <h3>Focused settings</h3>
-      <p>Connection, save location, and application behavior in one place. The application title, version, description, and debug state are informational and read-only.</p>
-      <a href="docs/images/settings.png"><img src="docs/images/settings.png" alt="Settings page with the read-only About this app section" width="100%"></a>
+    <td align="center" width="25%">
+      <a href="docs/images/dashboard.png"><img src="docs/images/dashboard.png" height="240" alt="TransferCove dashboard with a running server"></a><br>
+      <sub><strong>Dashboard</strong><br>Control the receiver</sub>
     </td>
-    <td width="50%" valign="top">
-      <h3>Upload directly from a browser</h3>
-      <p>Add files to the queue and start the transfer. Progress, speed, and the result of every transfer stay visible.</p>
-      <a href="docs/images/upload.png"><img src="docs/images/upload.png" alt="Browser upload page with a file queue" width="100%"></a>
+    <td align="center" width="25%">
+      <a href="docs/images/settings.png"><img src="docs/images/settings.png" height="240" alt="TransferCove settings page"></a><br>
+      <sub><strong>Settings</strong><br>Shape your workflow</sub>
+    </td>
+    <td align="center" width="25%">
+      <a href="docs/images/upload.png"><img src="docs/images/upload.png" height="240" alt="TransferCove browser upload page with a file queue"></a><br>
+      <sub><strong>Upload page</strong><br>Send from any browser</sub>
+    </td>
+    <td align="center" width="25%">
+      <a href="docs/images/upload-mobile.png"><img src="docs/images/upload-mobile.png" height="240" alt="TransferCove upload page on a mobile screen"></a><br>
+      <sub><strong>Mobile layout</strong><br>Works on smaller screens</sub>
     </td>
   </tr>
 </table>
 
-<details>
-<summary><strong>See the mobile layout</strong></summary>
-
-<br>
-<p align="center">
-  <img src="docs/images/upload-mobile.png" width="340" alt="Mobile layout of the file upload page">
-</p>
-
-</details>
-
-*Screenshots were captured in an isolated demo environment with a sample upload queue.*
+<p align="center"><sub>Click any screenshot to open the full-size image. Screenshots were captured in an isolated demo environment with a sample upload queue.</sub></p>
 
 <a id="quick-start"></a>
 
@@ -207,7 +205,7 @@ Flet reads the application icon from `assets/icon.png`; the build entry point, a
 
 ### Windows installer and license notices
 
-The repository includes an Inno Setup script at [`installer/windows/TransferCove.iss`](installer/windows/TransferCove.iss). After building the Flet application, open the script with Inno Setup Compiler to create `dist/installer/TransferCove-Setup-0.2.2.exe`:
+The repository includes an Inno Setup script at [`installer/windows/TransferCove.iss`](installer/windows/TransferCove.iss). After building the Flet application, open the script with Inno Setup Compiler to create `dist/installer/TransferCove-Setup-0.2.3.exe`:
 
 ```text
 poetry run flet build windows --yes

@@ -1,4 +1,4 @@
-TransferCove 0.2.2 — third-party notices
+TransferCove 0.2.3 — third-party notices
 ==========================================
 
 TransferCove is distributed under the MIT License. The project license is
