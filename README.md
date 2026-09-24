@@ -20,6 +20,9 @@ The computer receives files. A phone, tablet, or another computer sends them fro
 
 <br>
 
+> [!WARNING]
+> **No encryption or authentication:** TransferCove sends files over plain HTTP. Use it only inside a trusted, verified local network. Do not expose the server to the public internet or an untrusted Wi-Fi network.
+
 <a id="features"></a>
 
 ## Everything you need for local file transfers
@@ -58,9 +61,6 @@ The desktop app manages the receiver. Any modern browser can act as the sender.
 </div>
 
 <p align="center"><sub>Click any screenshot to open the full-size image. Screenshots were captured in an isolated demo environment with a sample upload queue.</sub></p>
-
-> [!WARNING]
-> **No encryption or authentication:** TransferCove sends files over plain HTTP. Use it only inside a trusted, verified local network. Do not expose the server to the public internet or an untrusted Wi-Fi network.
 
 <a id="quick-start"></a>
 
