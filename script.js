@@ -1,114 +1,65 @@
-const demoDrop = document.querySelector("#demo-drop");
-const demoInput = document.querySelector("#demo-input");
-const chooseFiles = document.querySelector("#choose-files");
-const demoQueue = document.querySelector("#demo-queue");
-const demoCount = document.querySelector("#demo-count");
-const demoStart = document.querySelector("#demo-start");
-const demoStatus = document.querySelector("#demo-status");
-const year = document.querySelector("#year");
+// Progressive enhancement: without JavaScript, screenshots open as normal links.
+(() => {
+  const dialog = document.querySelector(".image-dialog");
+  const screenshots = [...document.querySelectorAll("[data-lightbox]")];
+  if (!dialog || typeof dialog.showModal !== "function" || !screenshots.length) return;
 
-if (year) year.textContent = new Date().getFullYear();
+  const image = dialog.querySelector(".dialog-image");
+  const caption = dialog.querySelector("#image-caption");
+  const counter = dialog.querySelector(".dialog-counter");
+  const original = dialog.querySelector(".dialog-original");
+  const closeButton = dialog.querySelector(".dialog-close");
+  let activeIndex = 0;
+  let opener = null;
 
-const formatBytes = (bytes) => {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
-};
+  function showScreenshot(index) {
+    activeIndex = (index + screenshots.length) % screenshots.length;
+    const link = screenshots[activeIndex];
+    image.src = link.href;
+    image.alt = link.querySelector("img").alt;
+    caption.textContent = link.dataset.caption;
+    counter.textContent = `${activeIndex + 1} / ${screenshots.length}`;
+    original.href = link.href;
+  }
 
-function addFiles(files) {
-  if (!files.length) return;
-
-  demoQueue.replaceChildren();
-  Array.from(files).slice(0, 4).forEach((file) => {
-    const row = document.createElement("div");
-    row.className = "queue-row";
-    row.dataset.demoFile = file.name;
-    row.dataset.demoSize = formatBytes(file.size);
-    row.innerHTML = `
-      <span class="queue-file-icon">↥</span>
-      <span class="queue-file-copy">
-        <strong></strong>
-        <small><span class="queue-size"></span> · <em>Ready to send</em></small>
-        <span class="mini-progress"><i></i></span>
-      </span>
-      <b class="queue-percent">0%</b>
-    `;
-    row.querySelector("strong").textContent = file.name;
-    row.querySelector(".queue-size").textContent = formatBytes(file.size);
-    demoQueue.appendChild(row);
+  screenshots.forEach((link, index) => {
+    link.addEventListener("click", (event) => {
+      // Preserve open-in-new-tab, download, and other native link gestures.
+      if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      opener = link;
+      showScreenshot(index);
+      dialog.showModal();
+      document.body.classList.add("viewer-open");
+    });
   });
-  demoCount.textContent = `${Math.min(files.length, 4)} ${files.length === 1 ? "file" : "files"} · demo queue`;
-  demoStatus.textContent = "Ready when you are";
-  demoStatus.classList.remove("is-done");
-  demoStart.disabled = false;
-}
 
-chooseFiles?.addEventListener("click", (event) => {
-  event.preventDefault();
-  demoInput?.click();
-});
+  closeButton.addEventListener("click", () => dialog.close());
+  dialog.querySelector(".dialog-previous").addEventListener("click", () => showScreenshot(activeIndex - 1));
+  dialog.querySelector(".dialog-next").addEventListener("click", () => showScreenshot(activeIndex + 1));
 
-demoInput?.addEventListener("change", (event) => addFiles(event.target.files));
-
-["dragenter", "dragover"].forEach((eventName) => {
-  demoDrop?.addEventListener(eventName, (event) => {
-    event.preventDefault();
-    demoDrop.classList.add("is-dragging");
-  });
-});
-
-["dragleave", "drop"].forEach((eventName) => {
-  demoDrop?.addEventListener(eventName, (event) => {
-    event.preventDefault();
-    demoDrop.classList.remove("is-dragging");
-  });
-});
-
-demoDrop?.addEventListener("drop", (event) => addFiles(event.dataTransfer.files));
-
-demoStart?.addEventListener("click", () => {
-  const rows = [...demoQueue.querySelectorAll(".queue-row")];
-  if (!rows.length || demoStart.disabled) return;
-
-  demoStart.disabled = true;
-  demoStatus.classList.remove("is-done");
-  demoStatus.textContent = "Transferring locally…";
-  let rowIndex = 0;
-  let progress = 0;
-
-  const timer = window.setInterval(() => {
-    const row = rows[rowIndex];
-    if (!row) {
-      window.clearInterval(timer);
-      demoStatus.textContent = "Transfer complete · files stayed local";
-      demoStatus.classList.add("is-done");
-      demoStart.disabled = false;
-      return;
+  dialog.addEventListener("keydown", (event) => {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      event.preventDefault();
+      showScreenshot(activeIndex + (event.key === "ArrowRight" ? 1 : -1));
     }
-
-    row.classList.add("is-active");
-    const percent = row.querySelector(".queue-percent");
-    const fill = row.querySelector(".mini-progress i");
-    const state = row.querySelector("em");
-    progress = Math.min(100, progress + 8 + Math.round(Math.random() * 12));
-    percent.textContent = `${progress}%`;
-    fill.style.width = `${progress}%`;
-    state.textContent = progress === 100 ? "Transferred" : "Sending locally";
-
-    if (progress === 100) {
-      row.classList.remove("is-active");
-      row.classList.add("is-done");
-      rowIndex += 1;
-      progress = 0;
-    }
-  }, 180);
-});
-
-document.querySelectorAll('a[href^="#"]').forEach((link) => {
-  link.addEventListener("click", (event) => {
-    const target = document.querySelector(link.getAttribute("href"));
-    if (!target) return;
-    event.preventDefault();
-    target.scrollIntoView({ behavior: "smooth", block: "start" });
   });
-});
+
+  dialog.addEventListener("click", (event) => {
+    const bounds = dialog.getBoundingClientRect();
+    const outside = event.clientX < bounds.left || event.clientX > bounds.right
+      || event.clientY < bounds.top || event.clientY > bounds.bottom;
+    if (event.target === dialog && outside) dialog.close();
+  });
+
+  dialog.addEventListener("close", () => {
+    document.body.classList.remove("viewer-open");
+    opener?.focus({ preventScroll: true });
+  });
+
+  // Reveal the answer even if it has already been collapsed.
+  document.querySelector('a[href="#security"]')?.addEventListener("click", () => {
+    document.querySelector("#security").open = true;
+  });
+})();

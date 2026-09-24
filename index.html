@@ -3,144 +3,147 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#07100c">
-    <meta name="description" content="TransferCove is a local-first file transfer app for sending files over your own network.">
+    <meta name="theme-color" content="#09110e">
+    <meta name="description" content="Send files to your computer from a phone, tablet, or browser with TransferCove. Free, open-source file transfers for trusted local networks. No encryption or authentication.">
     <meta property="og:title" content="TransferCove — your files, your network">
-    <meta property="og:description" content="A calm, private way to move files between devices on the same Wi-Fi network.">
+    <meta property="og:description" content="A desktop receiver. A browser on the other device. File transfers over your trusted local network, without a cloud account. Unencrypted HTTP.">
     <meta property="og:type" content="website">
-    <link rel="icon" type="image/png" href="assets/favicon.png">
-    <link rel="preload" href="assets/icon.svg" as="image" type="image/svg+xml">
-    <link rel="stylesheet" href="styles.css">
-    <script defer src="script.js"></script>
+    <meta property="og:url" content="https://alexzha-dev.github.io/transfercove/">
+    <meta property="og:image" content="https://alexzha-dev.github.io/transfercove/docs/images/dashboard.png">
+    <meta property="og:image:alt" content="The TransferCove desktop dashboard">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="canonical" href="https://alexzha-dev.github.io/transfercove/">
+    <link rel="icon" type="image/svg+xml" href="./assets/icon.svg">
+    <link rel="icon" type="image/png" href="./assets/favicon.png">
+    <link rel="stylesheet" href="./styles.css">
+    <script defer src="./script.js"></script>
     <title>TransferCove — your files, your network</title>
   </head>
-  <body>
-    <div class="site-shell">
-      <header class="topbar" id="top">
-        <a class="brand" href="#top" aria-label="TransferCove home">
-          <span class="brand-mark"><img src="assets/icon.svg" alt=""></span>
-          <span>Transfer<strong>Cove</strong></span>
-        </a>
-        <nav class="nav-links" aria-label="Primary navigation">
-          <a href="#features">Features</a>
-          <a href="#how-it-works">How it works</a>
-          <a href="#preview">Preview</a>
-          <a href="#download">Download</a>
-        </nav>
-        <a class="topbar-link" href="https://github.com/AlexZha-dev/transfercove" target="_blank" rel="noreferrer">
-          View on GitHub <span aria-hidden="true">↗</span>
-        </a>
-      </header>
+  <body id="top">
+    <a class="skip-link" href="#main">Skip to content</a>
 
-      <main>
-        <section class="security-warning page-width" role="note" aria-labelledby="security-warning-title">
-          <div class="security-warning-icon" aria-hidden="true">!</div>
-          <div class="security-warning-copy">
-            <span class="warning-label">Important security notice</span>
-            <h2 id="security-warning-title">No encryption or authentication</h2>
-            <p>TransferCove sends files over plain HTTP. Use it only inside a trusted, verified local network. Do not expose the server to the public internet or an untrusted Wi-Fi network.</p>
+    <aside class="security-notice" aria-labelledby="security-title">
+      <div class="container security-inner">
+        <svg class="icon security-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m12 3 10 18H2L12 3Z" stroke-linejoin="round"/><path d="M12 9v5m0 3v1"/></svg>
+        <div>
+          <strong id="security-title">Trusted local networks only. No encryption or authentication.</strong>
+          <p>Files are sent over plain HTTP. Use only a trusted, verified local network. Never expose the receiver to the public internet or an untrusted Wi-Fi network.</p>
+        </div>
+        <a href="#security">Read before use <span aria-hidden="true">↗</span></a>
+      </div>
+    </aside>
+
+    <header class="site-header container">
+      <a class="brand" href="#top" aria-label="TransferCove home">
+        <img src="./assets/icon.svg" width="36" height="36" alt="">
+        <span>Transfer<span class="text-accent">Cove</span></span>
+      </a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <a href="#how-it-works">How it works</a>
+        <a href="#preview">Inside the app</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+      <a class="github-link" href="https://github.com/AlexZha-dev/transfercove">
+        <svg class="icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .9a11.1 11.1 0 0 0-3.51 21.63c.56.1.76-.24.76-.54v-2.06c-3.09.67-3.74-1.31-3.74-1.31-.51-1.28-1.24-1.62-1.24-1.62-1.01-.69.08-.68.08-.68 1.12.08 1.7 1.15 1.7 1.15 1 1.7 2.6 1.21 3.24.93.1-.72.39-1.21.71-1.49-2.47-.28-5.06-1.24-5.06-5.49 0-1.21.43-2.2 1.14-2.98-.12-.28-.5-1.41.11-2.94 0 0 .93-.3 3.05 1.14a10.6 10.6 0 0 1 5.55 0c2.12-1.44 3.05-1.14 3.05-1.14.61 1.53.23 2.66.11 2.94.71.78 1.14 1.77 1.14 2.98 0 4.26-2.6 5.21-5.08 5.48.4.35.75 1.02.75 2.06v3.03c0 .3.2.65.77.54A11.1 11.1 0 0 0 12 .9Z"/></svg>
+        GitHub <span aria-hidden="true">↗</span>
+      </a>
+    </header>
+
+    <main id="main" tabindex="-1">
+      <section class="hero container" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <a class="release-label" href="https://github.com/AlexZha-dev/transfercove/releases"><span class="status-dot" aria-hidden="true"></span> Meet TransferCove <span class="version">v0.2.3 <span aria-hidden="true">↗</span></span></a>
+          <h1 id="hero-title">Your files.<br><span class="text-accent">Your network.</span></h1>
+          <p class="hero-description">From your phone to your computer.<br>From a browser to your own folder.<br>A simple file transfer, close to home.</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#download">Get TransferCove <span aria-hidden="true">↓</span></a>
+            <a class="text-link" href="#how-it-works">See how it works <span aria-hidden="true">↗</span></a>
           </div>
-          <span class="security-warning-tag">Local network only</span>
-        </section>
+          <p class="hero-footnote">Free &amp; open source <span aria-hidden="true">/</span> No cloud account</p>
+        </div>
+        <figure class="hero-product">
+          <div class="product-topline"><span><span class="status-dot" aria-hidden="true"></span> THE DESKTOP RECEIVER</span><span>01 / 04</span></div>
+          <a class="screenshot-link hero-screenshot" href="./docs/images/dashboard.png" data-lightbox data-caption="Desktop dashboard — start the receiver and see your connection details." aria-label="Enlarge the desktop dashboard screenshot">
+            <img src="./docs/images/dashboard.png" width="1440" height="1180" alt="TransferCove dashboard with server controls, address, port, and save location" fetchpriority="high">
+            <span class="image-enlarge" aria-hidden="true">↗</span>
+          </a>
+          <figcaption><span>One place to manage incoming files.</span><span>Click to explore <span aria-hidden="true">↗</span></span></figcaption>
+        </figure>
+      </section>
 
-        <section class="hero page-width" aria-labelledby="hero-title">
-          <div class="hero-copy">
-            <div class="eyebrow"><span class="pulse-dot"></span> Local-first file transfer <span class="eyebrow-divider">/</span> v0.2.3</div>
-            <h1 id="hero-title">Your files.<br><span>Your network.</span></h1>
-            <p class="hero-lede">TransferCove moves files between devices over the Wi-Fi you already trust. Control the receiver from a focused desktop app, then send from any browser.</p>
-            <div class="hero-actions">
-              <a class="button button-primary" href="https://github.com/AlexZha-dev/transfercove/releases" target="_blank" rel="noreferrer">
-                <span>Open release page</span><span class="button-arrow" aria-hidden="true">↗</span>
-              </a>
-              <a class="button button-quiet" href="#how-it-works">See how it works <span aria-hidden="true">↓</span></a>
-            </div>
-            <div class="hero-note"><span class="note-check">✓</span> No cloud account <span class="note-separator">·</span> No subscription <span class="note-separator">·</span> Your network</div>
+      <section class="principles container" aria-label="At a glance">
+        <div><span class="principle-mark" aria-hidden="true">01</span><p><strong>One desktop app</strong><span>Your computer receives the files.</span></p></div>
+        <div><span class="principle-mark" aria-hidden="true">02</span><p><strong>Send from a browser</strong><span>No app needed on the sending device.</span></p></div>
+        <div><span class="principle-mark" aria-hidden="true">03</span><p><strong>No cloud storage</strong><span>A direct transfer on your local network.</span></p></div>
+      </section>
+
+      <section class="section container" id="how-it-works" aria-labelledby="how-title">
+        <div class="section-heading">
+          <div><p class="eyebrow">A shorter route for your files</p><h2 id="how-title">Same network.<br>Three simple steps.</h2></div>
+          <p>Keep both devices on a local network you trust. The computer receives; the other device only needs a browser.</p>
+        </div>
+        <ol class="steps">
+          <li><span class="step-number" aria-hidden="true">01 <span>↗</span></span><h3>Set up the receiver</h3><p>Open TransferCove on your computer. In Settings → Connection, select <strong>Use current LAN address</strong>, save, and start the server.</p><span class="step-tag">On your computer</span></li>
+          <li><span class="step-number" aria-hidden="true">02 <span>↗</span></span><h3>Make the connection</h3><p>Scan the dashboard’s QR code or open its local address on your phone, tablet, or another computer.</p><span class="step-tag">On the sending device</span></li>
+          <li><span class="step-number" aria-hidden="true">03 <span>✓</span></span><h3>Send. Watch. Done.</h3><p>Select or drop your files, then start the upload. Follow the progress as they arrive in your chosen folder.</p><span class="step-tag">Straight to your folder</span></li>
+        </ol>
+      </section>
+
+      <section class="preview-section" id="preview" aria-labelledby="preview-title">
+        <div class="container">
+          <div class="section-heading">
+            <div><p class="eyebrow">Inside TransferCove</p><h2 id="preview-title">Less guesswork.<br>More getting files there.</h2></div>
+            <p>Real screens from the app. See the whole interface below, or select an image for a closer look.</p>
           </div>
 
-          <div class="hero-visual" aria-label="Interactive upload demonstration">
-            <div class="glow-orbit orbit-one"></div>
-            <div class="glow-orbit orbit-two"></div>
-            <div class="demo-window">
-              <div class="window-bar">
-                <div class="window-controls" aria-hidden="true"><span></span><span></span><span></span></div>
-                <span class="window-title">TransferCove <span>/ upload</span></span>
-                <span class="window-status"><i></i> Online</span>
-              </div>
-              <div class="demo-body">
-                <div class="demo-heading">
-                  <div>
-                    <span class="demo-kicker">SEND FROM BROWSER</span>
-                    <h2>Drop files here</h2>
-                    <p>Everything stays on your local network.</p>
-                  </div>
-                  <span class="demo-upload-icon" aria-hidden="true">↑</span>
-                </div>
-                <form class="demo-drop" id="demo-drop" aria-label="Demo file upload">
-                  <input id="demo-input" type="file" multiple>
-                  <span class="drop-ring" aria-hidden="true">↑</span>
-                  <strong>Drag &amp; drop files</strong>
-                  <span>or <button type="button" id="choose-files">choose from device</button></span>
-                  <small>Demo only · nothing is uploaded</small>
-                </form>
-                <div class="demo-queue-heading"><span>TRANSFER QUEUE</span><span id="demo-count">2 files · 18.4 MB</span></div>
-                <div class="demo-queue" id="demo-queue">
-                  <div class="queue-row" data-demo-file="design-notes.pdf" data-demo-size="8.2 MB">
-                    <span class="queue-file-icon">↥</span><span class="queue-file-copy"><strong>design-notes.pdf</strong><small>8.2 MB · <em>Ready to send</em></small><span class="mini-progress"><i style="width: 0%"></i></span></span><b class="queue-percent">0%</b>
-                  </div>
-                  <div class="queue-row" data-demo-file="photo-set.zip" data-demo-size="10.2 MB">
-                    <span class="queue-file-icon">↥</span><span class="queue-file-copy"><strong>photo-set.zip</strong><small>10.2 MB · <em>Ready to send</em></small><span class="mini-progress"><i style="width: 0%"></i></span></span><b class="queue-percent">0%</b>
-                  </div>
-                </div>
-                <div class="demo-actions"><span id="demo-status" aria-live="polite">Ready when you are</span><button class="button button-demo" id="demo-start" type="button"><span>Simulate transfer</span><span aria-hidden="true">→</span></button></div>
-              </div>
-            </div>
-          </div>
-        </section>
+          <article class="product-story">
+            <div class="story-copy"><p class="eyebrow"><span class="story-number">02 / 04</span> Your setup</p><h3>A place for everything<br>that comes in.</h3><p>Choose the save folder, configure the connection, and set how the desktop app starts. Your preferences stay ready for the next transfer.</p><ul class="feature-list"><li>Automatic local address detection</li><li>Your choice of destination folder</li><li>Desktop startup preferences</li></ul></div>
+            <figure class="product-figure"><a class="screenshot-link" href="./docs/images/settings.png" data-lightbox data-caption="Settings — configure the local connection, storage, and desktop preferences." aria-label="Enlarge the settings screenshot"><img src="./docs/images/settings.png" width="1440" height="1180" loading="lazy" decoding="async" alt="TransferCove settings with connection, storage, and desktop preferences"><span class="image-enlarge" aria-hidden="true">↗</span></a><figcaption>DESKTOP / SETTINGS</figcaption></figure>
+          </article>
 
-        <section class="signal-strip page-width" aria-label="Product principles">
-          <div><span class="strip-icon">⌁</span><span><strong>Private by default</strong><small>Files never leave your network.</small></span></div>
-          <div><span class="strip-icon">◌</span><span><strong>Simple to start</strong><small>Run it, open a browser, send.</small></span></div>
-          <div><span class="strip-icon">↯</span><span><strong>Made for real files</strong><small>Progress you can actually see.</small></span></div>
-        </section>
+          <article class="product-story story-reversed">
+            <div class="story-copy"><p class="eyebrow"><span class="story-number">03 / 04</span> The hand-off</p><h3>A browser.<br>A few files.<br>You’re all set.</h3><p>Open the receiver’s local page and add your files. The upload queue shows what is sending, what is finished, and what comes next.</p><ul class="feature-list"><li>Drag and drop multiple files</li><li>Per-file progress and transfer speed</li><li>Stop an upload or cancel the queue</li></ul></div>
+            <figure class="product-figure"><a class="screenshot-link" href="./docs/images/upload.png" data-lightbox data-caption="Browser upload — add files and follow the transfer queue." aria-label="Enlarge the browser upload screenshot"><img src="./docs/images/upload.png" width="1280" height="1326" loading="lazy" decoding="async" alt="Browser upload page showing a drop area, file queue, and transfer progress"><span class="image-enlarge" aria-hidden="true">↗</span></a><figcaption>BROWSER / UPLOAD QUEUE</figcaption></figure>
+          </article>
 
-        <section class="content-section page-width" id="features" aria-labelledby="features-title">
-          <div class="section-intro"><span class="section-number">01</span><div><span class="eyebrow">The useful part</span><h2 id="features-title">A small tool with a clear job.</h2></div><p>TransferCove keeps the hand-off between your devices visible, local, and uncomplicated.</p></div>
-          <div class="feature-grid">
-            <article class="feature-card feature-card-large"><span class="feature-index">01</span><span class="feature-icon icon-desktop">▣</span><h3>A calm desktop control center</h3><p>Start or stop the receiver, check the address, and choose where incoming files should land.</p><a href="#preview">Explore the interface <span aria-hidden="true">↗</span></a><div class="feature-illustration desktop-illustration"><span class="illustration-sidebar"></span><span class="illustration-line line-one"></span><span class="illustration-line line-two"></span><span class="illustration-card"></span><span class="illustration-toggle"></span></div></article>
-            <article class="feature-card"><span class="feature-index">02</span><span class="feature-icon">↑</span><h3>Any browser can send</h3><p>No companion app on the phone or second computer. Open a local link and drop files in.</p><div class="feature-stat"><strong>0</strong><span>extra apps<br>to install</span></div></article>
-            <article class="feature-card"><span class="feature-index">03</span><span class="feature-icon">◉</span><h3>Know what is happening</h3><p>Per-file progress, total speed, and clear states make every transfer easy to follow.</p><div class="meter-row"><span>transfer clarity</span><span>100%</span></div><div class="meter"><i></i></div></article>
-          </div>
-        </section>
+          <article class="product-story story-mobile">
+            <div class="story-copy"><p class="eyebrow"><span class="story-number">04 / 04</span> Small screen, same idea</p><h3>Already on<br>your phone.</h3><p>Your mobile browser is the sender. Scan the QR code, choose your files, and send them to the computer without installing a companion app.</p><a class="text-link" href="#download">Start with the desktop app <span aria-hidden="true">↗</span></a><div class="connection-route" aria-label="Files go from your phone browser over the local network to your computer"><span>Phone browser</span><span class="route-line" aria-hidden="true">→</span><span>Your computer</span><small>Same trusted network · plain HTTP</small></div></div>
+            <figure class="product-figure mobile-figure"><a class="screenshot-link" href="./docs/images/upload-mobile.png" data-lightbox data-caption="Mobile upload — the same browser workflow on a smaller screen." aria-label="Enlarge the mobile upload screenshot"><img src="./docs/images/upload-mobile.png" width="390" height="1198" loading="lazy" decoding="async" alt="Full mobile upload page with file selection and transfer queue"><span class="image-enlarge" aria-hidden="true">↗</span></a><figcaption>MOBILE / NO COMPANION APP</figcaption></figure>
+          </article>
+          <p class="preview-note">Screenshots use a sample queue in a demo environment. This website showcases the app; it does not receive or transfer files.</p>
+        </div>
+      </section>
 
-        <section class="content-section how-section page-width" id="how-it-works" aria-labelledby="how-title">
-          <div class="section-intro"><span class="section-number">02</span><div><span class="eyebrow">Three quiet steps</span><h2 id="how-title">From desktop to done.</h2></div><p>Designed for the moment when you just need a file on the other device — without handing it to a third party.</p></div>
-          <div class="steps-grid">
-            <article class="step-card"><span class="step-number">01</span><h3>Start the receiver</h3><p>Launch TransferCove on the computer that should receive the files.</p><span class="step-line"></span><span class="step-caption">Desktop app</span></article>
-            <article class="step-card"><span class="step-number">02</span><h3>Open the local link</h3><p>Use the shown address on a phone, tablet, or another computer on the same Wi-Fi.</p><span class="step-line"></span><span class="step-caption">Any modern browser</span></article>
-            <article class="step-card"><span class="step-number">03</span><h3>Send and watch</h3><p>Drop files, start the queue, and see exactly when each transfer finishes.</p><span class="step-line"></span><span class="step-caption">Saved on the receiver</span></article>
-          </div>
-        </section>
+      <section class="section container faq-section" id="faq" aria-labelledby="faq-title">
+        <div class="faq-heading"><p class="eyebrow">Before your first transfer</p><h2 id="faq-title">A few useful<br>things to know.</h2><a class="text-link" href="https://github.com/AlexZha-dev/transfercove#readme">Read the documentation <span aria-hidden="true">↗</span></a></div>
+        <div class="faq-list">
+          <details class="security-detail" id="security" open><summary>Are transfers encrypted?</summary><div class="faq-answer"><p><strong>No. TransferCove has no encryption or authentication.</strong> Files travel over plain HTTP. Use it only inside a trusted, verified local network.</p><p>Do not expose the receiver to the public internet, configure port forwarding for it, or use it on public or untrusted Wi-Fi. Other devices that can reach the receiver do not need to sign in.</p></div></details>
+          <details><summary>Does the sending device need an app?</summary><div class="faq-answer"><p>No. Run TransferCove on the receiving computer, then open its local address in a modern browser on the sending device. A phone, tablet, or another computer can send files.</p></div></details>
+          <details><summary>Where do my files go?</summary><div class="faq-answer"><p>Files are saved in the receiving computer’s storage folder, which you choose in Settings → Storage. TransferCove does not use cloud storage for the transfer.</p></div></details>
+          <details><summary>Why can’t my phone connect?</summary><div class="faq-answer"><p>Connect both devices to the same trusted local network. In Settings → Connection, choose <strong>Use current LAN address</strong>, save, and start the server. Use the dashboard’s shareable address or QR code.</p><p><code>127.0.0.1</code> only works on the receiver itself; <code>0.0.0.0</code> is not an address to open in a browser. Your private-network firewall must allow the selected port. Some guest networks also block connections between devices.</p></div></details>
+          <details><summary>How do I install or run TransferCove?</summary><div class="faq-answer"><p>Visit GitHub Releases for the published builds and installation notes. To run from source, you need Python 3.14+ and Poetry. Follow the repository’s <a href="https://github.com/AlexZha-dev/transfercove#quick-start">quick-start guide</a>.</p></div></details>
+          <details><summary>Is it free to use?</summary><div class="faq-answer"><p>Yes. TransferCove is open source under the MIT license. There is no subscription or cloud account to create. You can inspect the code, report an issue, or contribute on GitHub.</p></div></details>
+        </div>
+      </section>
 
-        <section class="preview-section page-width" id="preview" aria-labelledby="preview-title">
-          <div class="preview-heading"><div><span class="eyebrow">A closer look</span><h2 id="preview-title">One visual language.<br><span>Two interfaces.</span></h2></div><p>Dark green surfaces, bright status signals, and enough breathing room to keep the important bits obvious.</p></div>
-          <div class="screenshots">
-            <a class="screenshot" href="docs/images/dashboard.png"><img src="docs/images/dashboard.png" alt="TransferCove desktop dashboard"></a>
-            <a class="screenshot" href="docs/images/settings.png"><img src="docs/images/settings.png" alt="TransferCove settings page"></a>
-            <a class="screenshot" href="docs/images/upload.png"><img src="docs/images/upload.png" alt="TransferCove browser upload page"></a>
-            <a class="screenshot screenshot-mobile" href="docs/images/upload-mobile.png"><img src="docs/images/upload-mobile.png" alt="TransferCove upload page on a mobile screen"></a>
-          </div>
-        </section>
+      <section class="download-section container" id="download" aria-labelledby="download-title">
+        <div class="download-panel">
+          <div class="download-copy"><p class="eyebrow">A little closer to your files</p><h2 id="download-title">Make the<br><span class="text-accent">local connection.</span></h2><p>Get TransferCove from GitHub. Set up your receiver,<br class="desktop-break"> open a browser, and bring your files home.</p><div class="download-meta"><span>VERSION 0.2.3</span><span>MIT LICENSE</span><span>OPEN SOURCE</span></div></div>
+          <div class="download-actions"><img src="./assets/icon.svg" width="72" height="72" alt="" loading="lazy"><a class="button button-primary" href="https://github.com/AlexZha-dev/transfercove/releases">View GitHub releases <span aria-hidden="true">↗</span></a><a class="text-link" href="https://github.com/AlexZha-dev/transfercove">Explore the source code <span aria-hidden="true">↗</span></a><p>Unencrypted transfers.<br>For trusted local networks only.</p></div>
+        </div>
+      </section>
+    </main>
 
-        <section class="download-section page-width" id="download" aria-labelledby="download-title">
-          <div class="download-card">
-            <div class="download-copy"><span class="eyebrow">Take it with you</span><h2 id="download-title">A better hand-off is<br><span>almost ready.</span></h2><p>Version 0.2.3 is the current release milestone. The GitHub release page will host the downloadable build as soon as it is published.</p><div class="release-meta"><span class="release-dot"></span><strong>v0.2.3</strong><span>Release coming soon</span></div></div>
-            <div class="download-action"><a class="button button-primary button-wide" href="https://github.com/AlexZha-dev/transfercove/releases" target="_blank" rel="noreferrer">Open GitHub releases <span aria-hidden="true">↗</span></a><span class="download-hint">The download link will stay the same when the build lands.</span></div>
-          </div>
-        </section>
-      </main>
+    <footer class="site-footer container">
+      <div><a class="brand" href="#top"><img src="./assets/icon.svg" width="30" height="30" alt=""><span>Transfer<span class="text-accent">Cove</span></span></a><p>Your files. Your network.</p></div>
+      <nav aria-label="Footer navigation"><a href="https://github.com/AlexZha-dev/transfercove">Source</a><a href="https://github.com/AlexZha-dev/transfercove/releases">Releases</a><a href="https://github.com/AlexZha-dev/transfercove/issues">Issues</a><a href="#top">Back to top ↑</a></nav>
+      <p class="footer-credit">Made by <a href="https://github.com/AlexZha-dev">AlexZha-dev</a><br>Open source, under the MIT license.</p>
+    </footer>
 
-      <footer class="footer page-width"><a class="brand footer-brand" href="#top"><span class="brand-mark"><img src="assets/icon.svg" alt=""></span><span>Transfer<strong>Cove</strong></span></a><span class="footer-copy">Your files. Your network.</span><div class="footer-links"><a href="https://github.com/AlexZha-dev/transfercove" target="_blank" rel="noreferrer">GitHub <span aria-hidden="true">↗</span></a><a href="#top">Back to top ↑</a></div><span class="footer-year">© <span id="year"></span></span></footer>
-    </div>
-    <noscript><div class="noscript-note">This page is fully readable without JavaScript. The upload panel is an interactive visual demo only.</div></noscript>
+    <dialog class="image-dialog" aria-labelledby="image-caption">
+      <div class="dialog-toolbar"><span class="dialog-counter" aria-live="polite"></span><a class="dialog-original" href="./docs/images/dashboard.png" target="_blank" rel="noopener noreferrer">Full-size image ↗</a><button class="dialog-close" type="button" aria-label="Close screenshot viewer" autofocus>Close <span aria-hidden="true">×</span></button></div>
+      <div class="dialog-image-wrap"><img class="dialog-image" alt=""></div>
+      <div class="dialog-bottom"><button class="dialog-previous" type="button" aria-label="Previous screenshot">←</button><p id="image-caption" aria-live="polite"></p><button class="dialog-next" type="button" aria-label="Next screenshot">→</button></div>
+    </dialog>
   </body>
 </html>

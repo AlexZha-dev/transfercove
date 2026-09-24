@@ -1,0 +1,20 @@
+# Local application files can remain when switching from the development branch.
+.env
+.env.*
+.data/
+.flet-data/
+.pytest_cache/
+.tmp-*/
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+alembic/
+app/
+build/
+dist/
+tests/
+node_modules/
+.preview-check/
+.DS_Store
+Thumbs.db
