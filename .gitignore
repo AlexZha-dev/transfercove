@@ -11,3 +11,4 @@ installer/*
 dist/
 .tmp-pytest-run/
 .flet-data/
+.preview-check/
