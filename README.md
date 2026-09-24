@@ -198,7 +198,7 @@ poetry run python tools/export_brand.py
 Build the Windows desktop package on Windows:
 
 ```bash
-poetry run flet build windows --yes
+poetry run flet build windows --yes --build-version 0.2.3
 ```
 
 Flet reads the application icon from `assets/icon.png`; the build entry point, artifact name, and local-data exclusions are configured in `pyproject.toml`. A Windows build also requires Flutter and the C++ desktop tools from Visual Studio. See the [Flet Windows publishing guide](https://flet.dev/docs/publish/windows/) for the platform prerequisites.
