@@ -38,28 +38,29 @@ The dark green interface adapts to the window size. The sending device only need
 
 The desktop app manages the receiver. Any modern browser can act as the sender.
 
-<table>
-  <tr>
-    <td align="center" width="25%">
-      <a href="docs/images/dashboard.png"><img src="docs/images/dashboard.png" height="240" alt="TransferCove dashboard with a running server"></a><br>
-      <sub><strong>Dashboard</strong><br>Control the receiver</sub>
-    </td>
-    <td align="center" width="25%">
-      <a href="docs/images/settings.png"><img src="docs/images/settings.png" height="240" alt="TransferCove settings page"></a><br>
-      <sub><strong>Settings</strong><br>Shape your workflow</sub>
-    </td>
-    <td align="center" width="25%">
-      <a href="docs/images/upload.png"><img src="docs/images/upload.png" height="240" alt="TransferCove browser upload page with a file queue"></a><br>
-      <sub><strong>Upload page</strong><br>Send from any browser</sub>
-    </td>
-    <td align="center" width="25%">
-      <a href="docs/images/upload-mobile.png"><img src="docs/images/upload-mobile.png" height="240" alt="TransferCove upload page on a mobile screen"></a><br>
-      <sub><strong>Mobile layout</strong><br>Works on smaller screens</sub>
-    </td>
-  </tr>
-</table>
+<div align="center">
+  <p>
+    <a href="docs/images/dashboard.png"><img src="docs/images/dashboard.png" width="900" alt="TransferCove dashboard with a running server"></a><br>
+    <strong>Dashboard</strong><br><sub>Control the receiver</sub>
+  </p>
+  <p>
+    <a href="docs/images/settings.png"><img src="docs/images/settings.png" width="900" alt="TransferCove settings page"></a><br>
+    <strong>Settings</strong><br><sub>Shape your workflow</sub>
+  </p>
+  <p>
+    <a href="docs/images/upload.png"><img src="docs/images/upload.png" width="900" alt="TransferCove browser upload page with a file queue"></a><br>
+    <strong>Upload page</strong><br><sub>Send from any browser</sub>
+  </p>
+  <p>
+    <a href="docs/images/upload-mobile.png"><img src="docs/images/upload-mobile.png" width="520" alt="TransferCove upload page on a mobile screen"></a><br>
+    <strong>Mobile layout</strong><br><sub>Works on smaller screens</sub>
+  </p>
+</div>
 
 <p align="center"><sub>Click any screenshot to open the full-size image. Screenshots were captured in an isolated demo environment with a sample upload queue.</sub></p>
+
+> [!WARNING]
+> **No encryption or authentication:** TransferCove sends files over plain HTTP. Use it only inside a trusted, verified local network. Do not expose the server to the public internet or an untrusted Wi-Fi network.
 
 <a id="quick-start"></a>
 
@@ -208,7 +209,7 @@ Flet reads the application icon from `assets/icon.png`; the build entry point, a
 The repository includes an Inno Setup script at [`installer/windows/TransferCove.iss`](installer/windows/TransferCove.iss). After building the Flet application, open the script with Inno Setup Compiler to create `dist/installer/TransferCove-Setup-0.2.3.exe`:
 
 ```text
-poetry run flet build windows --yes
+poetry run flet build windows --yes --build-version 0.2.3
 iscc installer/windows/TransferCove.iss
 ```
 
