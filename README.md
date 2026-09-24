@@ -54,10 +54,6 @@ The desktop app manages the receiver. Any modern browser can act as the sender.
     <a href="docs/images/upload.png"><img src="docs/images/upload.png" width="900" alt="TransferCove browser upload page with a file queue"></a><br>
     <strong>Upload page</strong><br><sub>Send from any browser</sub>
   </p>
-  <p>
-    <a href="docs/images/upload-mobile.png"><img src="docs/images/upload-mobile.png" width="520" alt="TransferCove upload page on a mobile screen"></a><br>
-    <strong>Mobile layout</strong><br><sub>Works on smaller screens</sub>
-  </p>
 </div>
 
 <p align="center"><sub>Click any screenshot to open the full-size image. Screenshots were captured in an isolated demo environment with a sample upload queue.</sub></p>
