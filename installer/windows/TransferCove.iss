@@ -4,11 +4,19 @@
 ; Then compile this file with Inno Setup Compiler.
 
 #define MyAppName "TransferCove"
-#define MyAppVersion "0.2.3"
-#define MyAppPublisher "AlexZha-dev"
-#define MyAppURL "https://github.com/AlexZha-dev/WIFI-trancmitor"
 #define MyAppExeName "TransferCove.exe"
 #define BuildDir "..\..\build\windows"
+#ifndef MyAppVersion
+  #define MyAppVersion GetStringFileInfo(BuildDir + "\" + MyAppExeName, "ProductVersion")
+#endif
+#if MyAppVersion == ""
+  #error "Build the application first or pass /DMyAppVersion to ISCC"
+#endif
+#define MyAppPublisher "AlexZha-dev"
+#define MyAppURL "https://github.com/AlexZha-dev/transfercove"
+#ifndef InstallerName
+  #define InstallerName "TransferCove-Setup-" + MyAppVersion
+#endif
 
 [Setup]
 AppId={{A6F4C3F3-2DA6-4AF4-9E2F-7C0A0200BEEF}
@@ -23,8 +31,9 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 ArchitecturesInstallIn64BitMode=x64
 PrivilegesRequired=admin
+PrivilegesRequiredOverridesAllowed=commandline
 OutputDir=..\..\dist\installer
-OutputBaseFilename=TransferCove-Setup-{#MyAppVersion}
+OutputBaseFilename={#InstallerName}
 SetupIconFile=..\..\assets\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 LicenseFile=..\..\LICENSE

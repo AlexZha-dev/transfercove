@@ -397,6 +397,8 @@ class MainPage:
 async def main(page: ft.Page) -> None:
     application = MainPage(page)
     await application.initialize()
+    # The installed Flet application captures stdout in console.log.
+    print("TransferCove desktop initialized", flush=True)
 
 
 def run() -> None:
