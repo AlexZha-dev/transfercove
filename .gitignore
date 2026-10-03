@@ -8,7 +8,11 @@ build/
 installer/*
 !installer/windows/
 !installer/windows/TransferCove.iss
+!installer/windows/SECURITY-NOTICE.txt
 dist/
 .tmp-pytest-run/
 .flet-data/
 .preview-check/
+.venv/
+.ruff_cache/
+test-results/

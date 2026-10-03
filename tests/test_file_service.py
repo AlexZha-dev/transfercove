@@ -48,7 +48,9 @@ def test_file_service_stores_lowercase_extension_and_record(tmp_path: Path) -> N
     assert upload.file.closed
 
 
-def test_file_service_removes_partial_file_when_repository_fails(tmp_path: Path) -> None:
+def test_file_service_removes_partial_file_when_repository_fails(
+    tmp_path: Path,
+) -> None:
     async def scenario() -> tuple[Path, UploadFile]:
         database = Database(
             f"sqlite+aiosqlite:///{(tmp_path / 'failure.db').as_posix()}"

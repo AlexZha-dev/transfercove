@@ -32,6 +32,13 @@ include = [{ path = "assets", format = ["sdist", "wheel"] }]
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=9.1.1,<10.0.0"
+ruff = "==0.16.8"
+
+[tool.poetry.group.build]
+optional = true
+
+[tool.poetry.group.build.dependencies]
+flet-cli = "==0.86.5"
 
 [tool.flet]
 product = "TransferCove"
@@ -44,6 +51,7 @@ icon_background = "#07100C"
 module = "main"
 exclude = [
     ".git",
+    ".github",
     ".venv",
     "venv",
     ".env",
@@ -59,6 +67,9 @@ exclude = [
     "installer",
     "tools",
     "tests",
+    "plan",
+    ".preview-check",
+    "test-results",
     "app/.flet",
     ".tmp-test",
     ".tmp-pytest-run",
@@ -79,3 +90,10 @@ app_files = ["**/__pycache__", "**/.pytest_cache", "**/.flet"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+
+[tool.ruff]
+target-version = "py314"
+extend-exclude = ["venv", "build", "dist", ".preview-check", ".tmp-*"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]

@@ -6,4 +6,4 @@ def test_make_qr_svg_returns_a_standalone_svg() -> None:
 
     assert result.startswith(b"<?xml")
     assert b"<svg" in result
-    assert b"id=\"qr-path\"" in result
+    assert b'id="qr-path"' in result

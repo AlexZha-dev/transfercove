@@ -402,9 +402,7 @@ class SettingsPage:
     def use_lan_address(self, _):
         address = get_lan_ipv4()
         if address is None:
-            self.message.value = (
-                "Could not detect a private LAN IPv4 address. Check your network connection."
-            )
+            self.message.value = "Could not detect a private LAN IPv4 address. Check your network connection."
             self.message.color = COLORS["warning"]
         else:
             self.host.value = address

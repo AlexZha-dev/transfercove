@@ -520,9 +520,7 @@ class HomePage:
         )
 
         if not loopback and self.controller.advertised_host == "127.0.0.1":
-            self.network_hint.value = (
-                "The LAN address could not be detected. Check your network connection or enter an address in Settings."
-            )
+            self.network_hint.value = "The LAN address could not be detected. Check your network connection or enter an address in Settings."
 
         state = self.controller.server_state
         label, headline, description, color = {

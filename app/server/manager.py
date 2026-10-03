@@ -186,7 +186,7 @@ class ServerManager:
             await writer.drain()
             response = await asyncio.wait_for(reader.read(1024), timeout=0.5)
             return response.startswith((b"HTTP/1.1 200", b"HTTP/1.0 200"))
-        except (OSError, TimeoutError):
+        except OSError, TimeoutError:
             return False
         finally:
             if writer is not None:

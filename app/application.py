@@ -4,8 +4,7 @@ from time import perf_counter
 from fastapi import FastAPI, Request
 
 from app.core.db import Database
-from app.core.settings import Settings
-from app.core.settings import is_packaged_build
+from app.core.settings import Settings, is_packaged_build
 from app.core.settings import settings as default_settings
 from app.routes.api_v1 import api_v1
 from app.routes.health import health_router

@@ -5,12 +5,13 @@ Revises: d0b65365c266
 Create Date: 2026-09-24
 
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy import inspect
 
+from alembic import op
 
 revision: str = "e5f0c48f0c1d"
 down_revision: Union[str, Sequence[str], None] = "d0b65365c266"

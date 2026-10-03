@@ -2,13 +2,13 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.engine import make_url
 from sqlalchemy.sql.schema import Table
 
 
@@ -18,8 +18,10 @@ def ensure_database_directory(url: str) -> None:
         return
 
     database_path = parsed_url.database
-    if not database_path or database_path == ":memory:" or database_path.startswith(
-        "file:"
+    if (
+        not database_path
+        or database_path == ":memory:"
+        or database_path.startswith("file:")
     ):
         return
 
