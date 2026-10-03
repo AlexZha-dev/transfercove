@@ -1,6 +1,6 @@
 ; TransferCove Windows installer for Inno Setup 6+
 ; Build the Flet application first:
-;   poetry run flet build windows --yes --build-version 0.2.3
+;   poetry run flet build windows --yes --build-version (poetry version --short)
 ; Then compile this file with Inno Setup Compiler.
 
 #define MyAppName "TransferCove"

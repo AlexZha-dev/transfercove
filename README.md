@@ -160,6 +160,12 @@ poetry run pytest
 
 The tests create temporary databases and storage directories, so they do not modify `.data/` or the local settings database.
 
+### Automated pull request checks and development builds
+
+GitHub Actions runs linting, formatting checks, and the full test suite on Windows and Linux for every pull request and every push to `dev`. The tests include launching the standalone upload server, checking its HTTP endpoints, and verifying an uploaded file and its SQLite metadata.
+
+After the checks pass, CI builds the Windows app and installer, silently installs it in a temporary directory, and verifies that the installed desktop initializes successfully. Verified installers are available in the workflow run's **Artifacts** section as `TransferCove-dev-<commit-sha>` for pushes to `dev` and `TransferCove-test-<commit-sha>` for pull requests. See [the CI guide](docs/ci.md) for local commands, diagnostics, and required PR checks.
+
 ### Project structure
 
 ```text
@@ -202,12 +208,15 @@ Flet reads the application icon from `assets/icon.png`; the build entry point, a
 
 ### Windows installer and license notices
 
-The repository includes an Inno Setup script at [`installer/windows/TransferCove.iss`](installer/windows/TransferCove.iss). After building the Flet application, open the script with Inno Setup Compiler to create `dist/installer/TransferCove-Setup-0.2.3.exe`:
+The repository includes an Inno Setup script at [`installer/windows/TransferCove.iss`](installer/windows/TransferCove.iss). The build script reads the version from `pyproject.toml` and passes it to Inno Setup. After building the Flet application, run these commands from PowerShell to create the installer under `dist/installer/`:
 
 ```text
-poetry run flet build windows --yes --build-version 0.2.3
-iscc installer/windows/TransferCove.iss
+poetry install --with dev,build
+poetry run flet build windows --yes --python-version 3.14 --build-version (poetry version --short)
+./.github/scripts/build-installer.ps1
 ```
+
+Opening the Inno Setup script directly also works: it reads the version from the built executable when no version override is supplied.
 
 The installer displays the MIT license, installs [`LICENSE`](LICENSE) and [`THIRD-PARTY-NOTICES.txt`](THIRD-PARTY-NOTICES.txt), and preserves the dependency license metadata shipped in the Flet bundle. The generated installer should be digitally signed before public distribution; signing is intentionally kept outside the repository so certificates and passwords are never committed. If dependency versions change during a rebuild, update `THIRD-PARTY-NOTICES.txt` from the final bundle before publishing the installer.
 
