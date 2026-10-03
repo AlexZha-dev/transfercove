@@ -74,7 +74,9 @@ try {
             if ($content -match 'Traceback \(most recent call last\)|Unhandled exception') {
                 throw 'Installed application reported an exception'
             }
-            if ($content -match 'TransferCove desktop initialized' -and $applicationProcess.MainWindowHandle -ne 0) {
+            # Windows reports MainWindowHandle = 0 for hidden processes. This
+            # message is emitted only after the real desktop view initializes.
+            if ($content -match 'TransferCove desktop initialized') {
                 $ready = $true
                 break
             }
