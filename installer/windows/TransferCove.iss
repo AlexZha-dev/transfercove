@@ -6,6 +6,9 @@
 #define MyAppName "TransferCove"
 #define MyAppExeName "TransferCove.exe"
 #define BuildDir "..\..\build\windows"
+#ifndef MyAppId
+  #define MyAppId "{A6F4C3F3-2DA6-4AF4-9E2F-7C0A0200BEEF}"
+#endif
 #ifndef MyAppVersion
   #define MyAppVersion GetStringFileInfo(BuildDir + "\" + MyAppExeName, "ProductVersion")
 #endif
@@ -19,7 +22,7 @@
 #endif
 
 [Setup]
-AppId={{A6F4C3F3-2DA6-4AF4-9E2F-7C0A0200BEEF}
+AppId={#StringChange(MyAppId, '{', '{{')}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
@@ -29,7 +32,8 @@ AppUpdatesURL={#MyAppURL}/releases
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
-ArchitecturesInstallIn64BitMode=x64
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=commandline
 OutputDir=..\..\dist\installer

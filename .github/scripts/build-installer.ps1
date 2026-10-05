@@ -1,5 +1,6 @@
 param(
     [string]$InstallerName,
+    [guid]$AppId = 'A6F4C3F3-2DA6-4AF4-9E2F-7C0A0200BEEF',
     [string]$CompilerPath = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
 )
 
@@ -20,7 +21,8 @@ try {
     if (-not $InstallerName) { $InstallerName = "TransferCove-Setup-$version" }
     if ($InstallerName -notmatch '^[A-Za-z0-9._-]+$') { throw 'Invalid installer filename' }
 
-    & $CompilerPath '/Qp' "/DMyAppVersion=$version" "/DInstallerName=$InstallerName" 'installer/windows/TransferCove.iss'
+    $appIdValue = '{' + $AppId.ToString().ToUpperInvariant() + '}'
+    & $CompilerPath '/Qp' "/DMyAppVersion=$version" "/DInstallerName=$InstallerName" "/DMyAppId=`"$appIdValue`"" 'installer/windows/TransferCove.iss'
     if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compilation failed' }
 
     $installerPath = Join-Path $projectRoot "dist/installer/$InstallerName.exe"

@@ -1,6 +1,9 @@
 param(
     [Parameter(Mandatory = $true)]
     [string]$InstallerPath,
+    [guid]$AppId = 'A6F4C3F3-2DA6-4AF4-9E2F-7C0A0200BEEF',
+    [ValidateSet('CurrentUser', 'AllUsers')]
+    [string]$InstallMode = 'CurrentUser',
     [string]$LogDirectory = 'test-results/installer',
     [int]$StartupTimeoutSeconds = 60
 )
@@ -8,10 +11,16 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
-# Avoid replacing an existing user's uninstall registration during local runs.
-$uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{A6F4C3F3-2DA6-4AF4-9E2F-7C0A0200BEEF}_is1'
-if (Test-Path -LiteralPath $uninstallKey) {
-    throw 'A per-user TransferCove installation already exists; use a clean runner.'
+# Avoid replacing an existing user's or machine-wide installation during local runs.
+$uninstallKeyName = '{' + $AppId.ToString().ToUpperInvariant() + '}_is1'
+$uninstallKeys = @(
+    "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\$uninstallKeyName",
+    "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\$uninstallKeyName"
+)
+foreach ($uninstallKey in $uninstallKeys) {
+    if (Test-Path -LiteralPath $uninstallKey) {
+        throw "A TransferCove installation already exists at $uninstallKey; use a clean runner."
+    }
 }
 if (Get-Process -Name TransferCove -ErrorAction SilentlyContinue) {
     throw 'TransferCove is already running; use a clean runner.'
@@ -43,11 +52,21 @@ $testEnvironment = @{
 }
 
 try {
-    # /CURRENTUSER avoids UAC; /DIR isolates the real installer in a unique path.
-    $setupProcess = Start-Process -FilePath $installer -ArgumentList @(
-        '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/CURRENTUSER',
+    # Exercise the real installer in both registry scopes in separate runs.
+    $installArguments = @(
+        '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-'
+    )
+    if ($InstallMode -eq 'CurrentUser') {
+        $installArguments += '/CURRENTUSER'
+    }
+    else {
+        $installArguments += '/ALLUSERS'
+    }
+    $installArguments += @(
         "/DIR=`"$installDirectory`"", "/LOG=`"$installLog`""
-    ) -PassThru -WindowStyle Hidden
+    )
+    $setupProcess = Start-Process -FilePath $installer -ArgumentList $installArguments `
+        -PassThru -WindowStyle Hidden
     if (-not $setupProcess.WaitForExit(120000)) { throw 'Installer timed out' }
     if ($setupProcess.ExitCode -ne 0) { throw "Installer exited with $($setupProcess.ExitCode)" }
 
@@ -93,7 +112,7 @@ try {
     if (-not (Test-Path -LiteralPath (Join-Path $dataDirectory 'desktop-settings.db'))) {
         throw 'Installed application did not initialize its settings database'
     }
-    Write-Output 'Installed application initialized successfully.'
+    Write-Output "Installed application initialized successfully ($InstallMode)."
 }
 finally {
     foreach ($process in @($applicationProcess, $setupProcess)) {
@@ -123,6 +142,11 @@ finally {
             throw 'Uninstaller timed out'
         }
         if ($uninstallProcess.ExitCode -ne 0) { throw 'Uninstaller failed' }
+    }
+    foreach ($uninstallKey in $uninstallKeys) {
+        if (Test-Path -LiteralPath $uninstallKey) {
+            throw "Uninstaller left an installation registration behind: $uninstallKey"
+        }
     }
     $resolvedRoot = [System.IO.Path]::GetFullPath($testRoot)
     $resolvedBase = [System.IO.Path]::GetFullPath($tempBase).TrimEnd('\') + '\'

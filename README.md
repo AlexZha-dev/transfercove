@@ -162,9 +162,9 @@ The tests create temporary databases and storage directories, so they do not mod
 
 ### Automated pull request checks and development builds
 
-GitHub Actions runs linting, formatting checks, and the full test suite on Windows and Linux for every pull request and every push to `dev`. The tests include launching the standalone upload server, checking its HTTP endpoints, and verifying an uploaded file and its SQLite metadata.
+GitHub Actions runs dependency review, linting, formatting checks, and the full test suite on Windows and Linux for every pull request. The tests include launching the standalone upload server, checking its HTTP endpoints, and verifying an uploaded file and its SQLite metadata. The Windows build constrains Flet's packaged Python dependencies to `poetry.lock` and verifies the generated bundle against the lock file.
 
-After the checks pass, CI builds the Windows app and installer, silently installs it in a temporary directory, and verifies that the installed desktop initializes successfully. Verified installers are available in the workflow run's **Artifacts** section as `TransferCove-dev-<commit-sha>` for pushes to `dev` and `TransferCove-test-<commit-sha>` for pull requests. See [the CI guide](docs/ci.md) for local commands, diagnostics, and required PR checks.
+After the checks pass, CI builds the Windows app and installer, silently installs it in temporary directories as both the current user and all users, and verifies desktop initialization and clean uninstallation. Pull requests also receive dependency review, and Dependabot proposes weekly dependency and workflow updates. Verified installers are available in the workflow run's **Artifacts** section as `TransferCove-dev-<commit-sha>` for pushes to `dev` and `TransferCove-test-<commit-sha>` for pull requests. See [the CI guide](docs/ci.md) for local commands, diagnostics, and required PR checks.
 
 ### Project structure
 
