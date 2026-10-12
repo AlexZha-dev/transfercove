@@ -2,17 +2,12 @@ name: CI
 
 on:
   pull_request:
-  merge_group:
-    types: [checks_requested]
-  push:
-    branches: [dev]
-  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 env:
@@ -120,10 +115,7 @@ jobs:
         run: poetry run python tools/verify_flet_bundle.py --site-packages build/site-packages
       - name: Build installer
         id: installer
-        env:
-          BUILD_KIND: ${{ github.event_name == 'push' && 'dev' || 'test' }}
-        run: |
-          ./.github/scripts/build-installer.ps1 -InstallerName "TransferCove-$env:BUILD_KIND-$env:GITHUB_SHA"
+        run: ./.github/scripts/build-installer.ps1 -InstallerName "TransferCove-test-$env:GITHUB_SHA"
       - name: Install and launch the application
         env:
           INSTALLER_PATH: ${{ steps.installer.outputs.installer-path }}
@@ -133,7 +125,7 @@ jobs:
       - name: Upload verified installer
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: TransferCove-${{ github.event_name == 'push' && 'dev' || 'test' }}-${{ github.sha }}
+          name: TransferCove-test-${{ github.sha }}
           path: ${{ steps.installer.outputs.installer-path }}
           if-no-files-found: error
           compression-level: 0

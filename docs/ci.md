@@ -4,7 +4,7 @@ The workflow is defined in [`.github/workflows/ci.yml`](../.github/workflows/ci.
 
 ## Triggers and checks
 
-Every pull request runs CI, including PRs targeting `dev` and `main`. Opening a PR, reopening it, and pushing additional commits trigger checks against GitHub's proposed merge commit. A separate dependency review blocks changes introducing high- or critical-severity vulnerabilities. Merge queue entries run the same checks. Pushes to `dev` also run the full pipeline. `workflow_dispatch` supports manual runs once the workflow exists on the repository's default branch. A newer run for the same PR or branch cancels the older one.
+Every pull request runs CI, including PRs targeting `dev` and `main`. Opening a PR, reopening it, and pushing additional commits to the PR trigger checks against GitHub's proposed merge commit. A separate dependency review blocks changes introducing high- or critical-severity vulnerabilities. A newer run for the same PR cancels the older one. Direct pushes and manual workflow dispatches do not run CI.
 
 The `checks` job runs on Python 3.14 with both `ubuntu-24.04` and `windows-2022`. It installs dependencies from `poetry.lock`, validates the lock file, runs Ruff lint/format checks, and runs all pytest tests. The standalone server integration test applies migrations to a temporary SQLite database, starts `python -m app.server_start_up` on a loopback port, and checks health, upload-page assets, invalid requests, successful file uploads, stored bytes, and database metadata. It always stops the server process. Dependabot proposes weekly updates to Python dependencies and GitHub Actions.
 
@@ -12,12 +12,11 @@ After both platforms pass, the `Windows installer` job exports the runtime versi
 
 The installer smoke test installs and uninstalls to separate temporary directories in both `/CURRENTUSER` and `/ALLUSERS` modes. It checks required files, launches the installed executable hidden, waits for the desktop initialization message in Flet's console log, and verifies the process stays alive and creates its settings database. It also checks that uninstall removes the registry entry. The test does not automatically acknowledge the security notice or expose a transfer server. The documented standalone upload-server flow, including migrations, is tested separately in pytest. Temporary data is removed after checks, and existing console logs are preserved during local runs. Windows reports a zero `MainWindowHandle` for hidden processes, so readiness uses the completed desktop initialization reported by the application. See [Microsoft's API documentation](https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.process.mainwindowhandle).
 
-The workflow uses the `pull_request` and `merge_group` events with read-only repository permissions and no signing or deployment secrets. Actions are pinned to commit SHAs. Installer artifacts are uploaded only after both smoke tests succeed.
+The workflow uses only the `pull_request` event, read-only repository permissions, and no signing or deployment secrets. Actions are pinned to commit SHAs. Installer artifacts are uploaded only after both smoke tests succeed.
 
 ## Artifacts and diagnostics
 
-- `TransferCove-dev-<sha>` contains `TransferCove-dev-<sha>.exe` after a push to `dev`.
-- `TransferCove-test-<sha>` contains a test installer after a pull request or manual run.
+- `TransferCove-test-<sha>` contains a test installer for a pull request.
 - `test-results-<runner>-<sha>` contains the pytest JUnit report, including failed test results.
 - `installer-logs-<sha>` contains install, application console, and uninstall logs, including logs from failed smoke tests.
 
