@@ -44,6 +44,10 @@ jobs:
         run: poetry run ruff check app tests tools main.py alembic
       - name: Check Python formatting
         run: poetry run ruff format --check app tests tools main.py alembic
+      - name: Test installer smoke failure detection
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./.github/scripts/test-smoke-installer.ps1
       - name: Prepare the test report directory
         run: python -c "from pathlib import Path; Path('test-results').mkdir(parents=True, exist_ok=True)"
       - name: Run unit, integration, and upload server smoke tests

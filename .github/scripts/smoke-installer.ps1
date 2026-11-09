@@ -17,6 +17,7 @@ $uninstallKeys = @(
     "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\$uninstallKeyName",
     "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\$uninstallKeyName"
 )
+$expectedUninstallKey = if ($InstallMode -eq 'CurrentUser') { $uninstallKeys[0] } else { $uninstallKeys[1] }
 foreach ($uninstallKey in $uninstallKeys) {
     if (Test-Path -LiteralPath $uninstallKey) {
         throw "A TransferCove installation already exists at $uninstallKey; use a clean runner."
@@ -32,6 +33,7 @@ $tempBase = [System.IO.Path]::GetTempPath()
 $testRoot = Join-Path $tempBase ('transfercove-smoke-' + [guid]::NewGuid().ToString('N'))
 $null = New-Item -ItemType Directory -Path $testRoot
 $installDirectory = Join-Path $testRoot 'installed'
+$uninstaller = Join-Path $installDirectory 'unins000.exe'
 $dataDirectory = Join-Path $testRoot 'data'
 $consoleLog = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'TransferCove/console.log'
 $previousConsoleLog = Join-Path $testRoot 'previous-console.log'
@@ -41,6 +43,7 @@ $installLog = Join-Path $logs 'install.log'
 $uninstallLog = Join-Path $logs 'uninstall.log'
 $applicationProcess = $null
 $setupProcess = $null
+$installationSucceeded = $false
 $savedEnvironment = @{}
 $testEnvironment = @{
     FLET_APP_STORAGE_DATA = $dataDirectory
@@ -69,7 +72,14 @@ try {
         -PassThru -WindowStyle Hidden
     if (-not $setupProcess.WaitForExit(120000)) { throw 'Installer timed out' }
     if ($setupProcess.ExitCode -ne 0) { throw "Installer exited with $($setupProcess.ExitCode)" }
+    $installationSucceeded = $true
 
+    if (-not (Test-Path -LiteralPath $uninstaller -PathType Leaf)) {
+        throw "Installed uninstaller is missing: $uninstaller"
+    }
+    if (-not (Test-Path -LiteralPath $expectedUninstallKey)) {
+        throw "Installer did not register $InstallMode installation at $expectedUninstallKey"
+    }
     foreach ($filename in @('TransferCove.exe', 'LICENSE', 'THIRD-PARTY-NOTICES.txt', 'SECURITY-NOTICE.txt')) {
         if (-not (Test-Path -LiteralPath (Join-Path $installDirectory $filename) -PathType Leaf)) {
             throw "Installed file is missing: $filename"
@@ -132,7 +142,7 @@ finally {
         }
     }
 
-    $uninstaller = Join-Path $installDirectory 'unins000.exe'
+    $uninstallerMissing = $false
     if (Test-Path -LiteralPath $uninstaller) {
         $uninstallProcess = Start-Process -FilePath $uninstaller -ArgumentList @(
             '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$uninstallLog`""
@@ -142,6 +152,12 @@ finally {
             throw 'Uninstaller timed out'
         }
         if ($uninstallProcess.ExitCode -ne 0) { throw 'Uninstaller failed' }
+        if (Test-Path -LiteralPath (Join-Path $installDirectory 'TransferCove.exe')) {
+            throw 'Uninstaller left the application executable behind'
+        }
+    }
+    elseif ($installationSucceeded) {
+        $uninstallerMissing = $true
     }
     foreach ($uninstallKey in $uninstallKeys) {
         if (Test-Path -LiteralPath $uninstallKey) {
@@ -155,4 +171,5 @@ finally {
         throw "Refusing to clean an unexpected path: $resolvedRoot"
     }
     Remove-Item -LiteralPath $resolvedRoot -Recurse -Force
+    if ($uninstallerMissing) { throw "Installed uninstaller is missing: $uninstaller" }
 }
