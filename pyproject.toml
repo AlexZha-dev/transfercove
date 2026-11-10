@@ -47,6 +47,11 @@ company = ""
 copyright = "Copyright (c) 2026 AlexZha-dev"
 icon_background = "#07100C"
 
+# Flet's build template pins jni 1.0.0, which is incompatible with newer
+# jni_flutter releases. Remove this override when upgrading to a fixed Flet.
+[tool.flet.flutter.pubspec.dependency_overrides]
+jni = "^1.1.0"
+
 [tool.flet.app]
 module = "main"
 exclude = [
