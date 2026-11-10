@@ -9,7 +9,7 @@ from alembic.util.exc import CommandError
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.application import create_app
-from app.core.migrations import upgrade_database_async
+from app.core.migrations import cleanup_legacy_history_async
 from app.core.settings import Settings
 
 logger = logging.getLogger(__name__)
@@ -58,9 +58,8 @@ class ServerManager:
             self.error = None
 
             try:
-                await upgrade_database_async(settings.transmitter.database_url)
-
-                application = create_app(settings)
+                await cleanup_legacy_history_async(settings.transmitter.database_url)
+                application = create_app(settings, cleanup_on_startup=False)
                 config = uvicorn.Config(
                     app=application,
                     host=settings.uvicorn.host,

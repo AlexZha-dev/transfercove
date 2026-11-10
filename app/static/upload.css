@@ -424,6 +424,13 @@ h1 span {
   color: var(--danger);
 }
 
+.file-saved-name {
+  margin-bottom: 9px;
+  color: var(--muted-bright);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
 .progress-track {
   height: 5px;
   overflow: hidden;

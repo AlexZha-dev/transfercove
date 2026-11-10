@@ -71,7 +71,7 @@ poetry run python main.py
 
 Open **Dashboard → Start server**, then choose **Open upload page**. By default, the upload page is available on the receiving computer at `http://127.0.0.1:8000/`.
 
-Desktop preferences are stored between launches. When the server is started from the desktop app, database migrations are applied automatically.
+Desktop preferences are stored between launches in a separate settings database. Receiving files does not require a history database. On startup, either server attempts to remove old file-history records from an existing local SQLite database; a cleanup failure is logged and does not prevent uploads. New installations do not create `files.db`.
 
 <a id="connection"></a>
 
@@ -117,6 +117,7 @@ Important defaults:
 UVICORN__HOST=127.0.0.1
 UVICORN__PORT=8000
 TRANSMITTER__STORAGE_DIR=.data/files
+# Legacy history cleanup only; not required for uploads
 TRANSMITTER__DATABASE_URL=sqlite+aiosqlite:///./.data/files.db
 DESKTOP__AUTO_START=False
 DESKTOP__OPEN_BROWSER=True
@@ -135,7 +136,6 @@ The desktop app uses `.env` as its initial configuration, then loads saved prefe
 ### Run the web server without the desktop window
 
 ```bash
-poetry run alembic upgrade head
 poetry run python -m app.server_start_up
 ```
 
@@ -148,7 +148,7 @@ Once running, these endpoints are available:
 | `/docs` | Interactive FastAPI documentation |
 | `POST /v1/files` | Upload one file using the multipart `file` field |
 
-Uploaded files are stored under UUID-based names while preserving their original extension. Original names and metadata are kept in the database. The list, download, and delete API endpoints are currently placeholders.
+New uploads are saved with their original file names where possible. Unsafe characters are replaced, and duplicate names receive a numbered suffix without replacing existing files. Upload history is not stored in the database. Automatic cleanup deletes old file-history records when the legacy SQLite database is accessible; if cleanup fails, it is retried on the next start. Previously uploaded UUID-named files remain on disk, but their original names cannot be recovered from deleted records. Non-SQLite legacy databases require a manual Alembic migration. On Unix, the destination filesystem must support hard links so that completed uploads can be published without replacing existing files. The list, download, and delete API endpoints are currently placeholders.
 
 ### Run the test suite
 
@@ -162,7 +162,7 @@ The tests create temporary databases and storage directories, so they do not mod
 
 ### Automated pull request checks and development builds
 
-GitHub Actions runs dependency review, linting, formatting checks, and the full test suite on Windows and Linux only for pull requests. The tests include launching the standalone upload server, checking its HTTP endpoints, and verifying an uploaded file and its SQLite metadata. The Windows build constrains Flet's packaged Python dependencies to `poetry.lock` and verifies the generated bundle against the lock file.
+GitHub Actions runs dependency review, linting, formatting checks, and the full test suite on Windows and Linux only for pull requests. The tests include launching the standalone upload server, checking its HTTP endpoints, and verifying an uploaded file. The Windows build constrains Flet's packaged Python dependencies to `poetry.lock` and verifies the generated bundle against the lock file.
 
 After the checks pass, CI builds the Windows app and installer, silently installs it in temporary directories as both the current user and all users, and verifies desktop initialization and clean uninstallation. Pull requests also receive dependency review, and Dependabot proposes weekly dependency and workflow updates. Verified installers are available in the workflow run's **Artifacts** section as `TransferCove-test-<commit-sha>`. See [the CI guide](docs/ci.md) for local commands, diagnostics, and required PR checks.
 
