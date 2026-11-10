@@ -20,17 +20,26 @@ from app.server.manager import ServerManager
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_embedded_server_migrates_legacy_database(tmp_path: Path) -> None:
+@pytest.mark.parametrize("history", ["legacy", "missing", "corrupt", "unavailable"])
+def test_embedded_server_cleans_history_without_requiring_database(
+    tmp_path: Path, history: str
+) -> None:
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         port = listener.getsockname()[1]
 
     database_path = tmp_path / "legacy.db"
-    with sqlite3.connect(database_path) as database:
-        database.execute("CREATE TABLE alembic_version (version_num varchar(32))")
-        database.execute("INSERT INTO alembic_version VALUES ('e5f0c48f0c1d')")
-        database.execute("CREATE TABLE files (original_name TEXT)")
-        database.execute("INSERT INTO files VALUES ('old.txt')")
+    if history == "legacy":
+        with sqlite3.connect(database_path) as database:
+            database.execute("CREATE TABLE alembic_version (version_num varchar(32))")
+            database.execute("INSERT INTO alembic_version VALUES ('e5f0c48f0c1d')")
+            database.execute("CREATE TABLE files (original_name TEXT)")
+            database.execute("INSERT INTO files VALUES ('old.txt')")
+    elif history == "corrupt":
+        database_path.write_bytes(b"not a database")
+    elif history == "unavailable":
+        database_path.write_bytes(b"not a directory")
+        database_path = database_path / "files.db"
 
     config = Settings(
         uvicorn=UvicornConfig(host="127.0.0.1", port=port),
@@ -45,20 +54,38 @@ def test_embedded_server_migrates_legacy_database(tmp_path: Path) -> None:
         try:
             await manager.start(config)
             assert manager.is_running
+            async with httpx.AsyncClient(trust_env=False) as client:
+                response = await client.post(
+                    f"http://127.0.0.1:{port}/v1/files",
+                    files={"file": ("smoke.txt", b"new upload", "text/plain")},
+                )
+                response.raise_for_status()
+                assert response.json()["saved_filename"] == "smoke.txt"
+                assert (
+                    config.transmitter.storage_dir / "smoke.txt"
+                ).read_bytes() == b"new upload"
         finally:
             await manager.stop()
 
     asyncio.run(run_server())
-    with sqlite3.connect(database_path) as database:
-        assert (
-            database.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='files'"
-            ).fetchone()
-            is None
-        )
+    if history == "legacy":
+        with sqlite3.connect(database_path) as database:
+            assert (
+                database.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='files'"
+                ).fetchone()
+                is None
+            )
+    elif history == "corrupt":
+        assert database_path.read_bytes() == b"not a database"
+    else:
+        assert not database_path.exists()
 
 
-def test_standalone_server_starts_and_persists_upload(tmp_path: Path) -> None:
+@pytest.mark.parametrize("history", ["legacy", "missing", "corrupt"])
+def test_standalone_server_starts_and_persists_upload(
+    tmp_path: Path, history: str
+) -> None:
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         port = listener.getsockname()[1]
@@ -68,11 +95,16 @@ def test_standalone_server_starts_and_persists_upload(tmp_path: Path) -> None:
     database_url = f"sqlite+aiosqlite:///{database_path.as_posix()}"
     storage_dir.mkdir()
     (storage_dir / "old-uuid.txt").write_bytes(b"legacy content")
-    with sqlite3.connect(database_path) as database:
-        database.execute("CREATE TABLE alembic_version (version_num varchar(32))")
-        database.execute("INSERT INTO alembic_version VALUES ('e5f0c48f0c1d')")
-        database.execute("CREATE TABLE files (original_name TEXT, storage_name TEXT)")
-        database.execute("INSERT INTO files VALUES ('old.txt', 'old-uuid.txt')")
+    if history == "legacy":
+        with sqlite3.connect(database_path) as database:
+            database.execute("CREATE TABLE alembic_version (version_num varchar(32))")
+            database.execute("INSERT INTO alembic_version VALUES ('e5f0c48f0c1d')")
+            database.execute(
+                "CREATE TABLE files (original_name TEXT, storage_name TEXT)"
+            )
+            database.execute("INSERT INTO files VALUES ('old.txt', 'old-uuid.txt')")
+    elif history == "corrupt":
+        database_path.write_bytes(b"not a database")
 
     environment = {
         key: value
@@ -137,13 +169,18 @@ def test_standalone_server_starts_and_persists_upload(tmp_path: Path) -> None:
 
                 assert (storage_dir / "smoke.txt").read_bytes() == content
                 assert (storage_dir / "old-uuid.txt").read_bytes() == b"legacy content"
-                with sqlite3.connect(database_path) as database:
-                    assert (
-                        database.execute(
-                            "SELECT name FROM sqlite_master WHERE type='table' AND name='files'"
-                        ).fetchone()
-                        is None
-                    )
+                if history == "legacy":
+                    with sqlite3.connect(database_path) as database:
+                        assert (
+                            database.execute(
+                                "SELECT name FROM sqlite_master WHERE type='table' AND name='files'"
+                            ).fetchone()
+                            is None
+                        )
+                elif history == "corrupt":
+                    assert database_path.read_bytes() == b"not a database"
+                else:
+                    assert not database_path.exists()
                 assert process.poll() is None
         except BaseException:
             print(log_path.read_text(encoding="utf-8", errors="replace"))

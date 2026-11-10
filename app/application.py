@@ -3,7 +3,7 @@ from time import perf_counter
 
 from fastapi import FastAPI, Request
 
-from app.core.migrations import upgrade_database_async
+from app.core.migrations import cleanup_legacy_history_async
 from app.core.settings import Settings, is_packaged_build
 from app.core.settings import settings as default_settings
 from app.routes.api_v1 import api_v1
@@ -12,15 +12,15 @@ from app.routes.static import register_static
 
 
 def create_app(
-    config: Settings | None = None, *, migrate_on_startup: bool = True
+    config: Settings | None = None, *, cleanup_on_startup: bool = True
 ) -> FastAPI:
     config = config or default_settings
     config.transmitter.storage_dir.mkdir(parents=True, exist_ok=True)
 
     @asynccontextmanager
     async def lifespan(application: FastAPI):
-        if migrate_on_startup:
-            await upgrade_database_async(config.transmitter.database_url)
+        if cleanup_on_startup:
+            await cleanup_legacy_history_async(config.transmitter.database_url)
         yield
 
     app = FastAPI(
