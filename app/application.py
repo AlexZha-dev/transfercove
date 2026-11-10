@@ -35,6 +35,7 @@ def create_app(
     )
 
     app.state.settings = config
+    app.state.active_uploads = 0
 
     @app.middleware("http")
     async def request_timer(request: Request, call_next):

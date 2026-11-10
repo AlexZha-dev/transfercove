@@ -75,7 +75,7 @@ def test_upload_endpoint_renames_duplicate_without_overwriting(
 def test_upload_endpoint_returns_upload_failure_details(
     client: TestClient, monkeypatch
 ) -> None:
-    async def fail_upload(_service, _upload):
+    async def fail_upload(_service, _upload, **_kwargs):
         raise FileUploadError(
             "Cannot write uploaded file: PermissionError: access denied"
         )
