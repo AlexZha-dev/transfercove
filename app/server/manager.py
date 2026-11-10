@@ -59,8 +59,7 @@ class ServerManager:
 
             try:
                 await upgrade_database_async(settings.transmitter.database_url)
-
-                application = create_app(settings)
+                application = create_app(settings, migrate_on_startup=False)
                 config = uvicorn.Config(
                     app=application,
                     host=settings.uvicorn.host,

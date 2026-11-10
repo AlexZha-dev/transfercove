@@ -18,6 +18,14 @@ def upgrade_database(database_url: str) -> None:
 
     ensure_database_directory(database_url)
     config = Config(str(config_path))
+    # Flet bundles bytecode-only migrations; source checkouts should ignore stale
+    # bytecode from other branches that Alembic would otherwise treat as heads.
+    source_revision = (
+        PROJECT_ROOT / "alembic/versions/e5f0c48f0c1d_repair_files_table.py"
+    )
+    config.set_main_option(
+        "sourceless", "false" if source_revision.is_file() else "true"
+    )
     # ConfigParser treats percent signs as interpolation markers.
     config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
     command.upgrade(config, "head")

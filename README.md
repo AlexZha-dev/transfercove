@@ -71,7 +71,7 @@ poetry run python main.py
 
 Open **Dashboard → Start server**, then choose **Open upload page**. By default, the upload page is available on the receiving computer at `http://127.0.0.1:8000/`.
 
-Desktop preferences are stored between launches. When the server is started from the desktop app, database migrations are applied automatically.
+Desktop preferences are stored between launches. Database migrations are applied automatically when either server starts.
 
 <a id="connection"></a>
 
@@ -135,7 +135,6 @@ The desktop app uses `.env` as its initial configuration, then loads saved prefe
 ### Run the web server without the desktop window
 
 ```bash
-poetry run alembic upgrade head
 poetry run python -m app.server_start_up
 ```
 
@@ -148,7 +147,7 @@ Once running, these endpoints are available:
 | `/docs` | Interactive FastAPI documentation |
 | `POST /v1/files` | Upload one file using the multipart `file` field |
 
-New uploads are saved with their original file names where possible. Unsafe characters are replaced, and duplicate names receive a numbered suffix without replacing existing files. New upload metadata is not stored in the database; existing file records and previously uploaded files are preserved. On Unix, the destination filesystem must support hard links so that completed uploads can be published without replacing existing files. The list, download, and delete API endpoints are currently placeholders.
+New uploads are saved with their original file names where possible. Unsafe characters are replaced, and duplicate names receive a numbered suffix without replacing existing files. Upload history is not stored in the database. On upgrade, old file-history records are deleted; previously uploaded UUID-named files remain on disk, but their original names cannot be recovered from those records. On Unix, the destination filesystem must support hard links so that completed uploads can be published without replacing existing files. The list, download, and delete API endpoints are currently placeholders.
 
 ### Run the test suite
 

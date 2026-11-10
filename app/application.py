@@ -3,7 +3,7 @@ from time import perf_counter
 
 from fastapi import FastAPI, Request
 
-from app.core.db import Database
+from app.core.migrations import upgrade_database_async
 from app.core.settings import Settings, is_packaged_build
 from app.core.settings import settings as default_settings
 from app.routes.api_v1 import api_v1
@@ -11,18 +11,17 @@ from app.routes.health import health_router
 from app.routes.static import register_static
 
 
-def create_app(config: Settings | None = None) -> FastAPI:
+def create_app(
+    config: Settings | None = None, *, migrate_on_startup: bool = True
+) -> FastAPI:
     config = config or default_settings
     config.transmitter.storage_dir.mkdir(parents=True, exist_ok=True)
-    database = Database(
-        url=config.transmitter.database_url,
-        echo=config.app.debug,
-    )
 
     @asynccontextmanager
     async def lifespan(application: FastAPI):
+        if migrate_on_startup:
+            await upgrade_database_async(config.transmitter.database_url)
         yield
-        await application.state.database.dispose()
 
     app = FastAPI(
         debug=config.app.debug,
@@ -36,7 +35,6 @@ def create_app(config: Settings | None = None) -> FastAPI:
     )
 
     app.state.settings = config
-    app.state.database = database
 
     @app.middleware("http")
     async def request_timer(request: Request, call_next):

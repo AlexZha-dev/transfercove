@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 import socket
 import sqlite3
@@ -13,9 +14,48 @@ from time import monotonic, sleep
 import httpx
 import pytest
 
-from app.core.migrations import upgrade_database
+from app.core.settings import Settings, TransmitterSettings, UvicornConfig
+from app.server.manager import ServerManager
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_embedded_server_migrates_legacy_database(tmp_path: Path) -> None:
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        port = listener.getsockname()[1]
+
+    database_path = tmp_path / "legacy.db"
+    with sqlite3.connect(database_path) as database:
+        database.execute("CREATE TABLE alembic_version (version_num varchar(32))")
+        database.execute("INSERT INTO alembic_version VALUES ('e5f0c48f0c1d')")
+        database.execute("CREATE TABLE files (original_name TEXT)")
+        database.execute("INSERT INTO files VALUES ('old.txt')")
+
+    config = Settings(
+        uvicorn=UvicornConfig(host="127.0.0.1", port=port),
+        transmitter=TransmitterSettings(
+            storage_dir=tmp_path / "files",
+            database_url=f"sqlite+aiosqlite:///{database_path.as_posix()}",
+        ),
+    )
+
+    async def run_server() -> None:
+        manager = ServerManager()
+        try:
+            await manager.start(config)
+            assert manager.is_running
+        finally:
+            await manager.stop()
+
+    asyncio.run(run_server())
+    with sqlite3.connect(database_path) as database:
+        assert (
+            database.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='files'"
+            ).fetchone()
+            is None
+        )
 
 
 def test_standalone_server_starts_and_persists_upload(tmp_path: Path) -> None:
@@ -26,14 +66,13 @@ def test_standalone_server_starts_and_persists_upload(tmp_path: Path) -> None:
     database_path = tmp_path / "files.db"
     storage_dir = tmp_path / "files"
     database_url = f"sqlite+aiosqlite:///{database_path.as_posix()}"
-    upgrade_database(database_url)
-    # Preserve legacy records even though new uploads no longer write history.
+    storage_dir.mkdir()
+    (storage_dir / "old-uuid.txt").write_bytes(b"legacy content")
     with sqlite3.connect(database_path) as database:
-        database.execute(
-            "INSERT INTO files (id, original_name, storage_name, content_type, "
-            "size_bytes, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-            ("a" * 32, "old.txt", "old-uuid.txt", "text/plain", 3, "2026-01-01"),
-        )
+        database.execute("CREATE TABLE alembic_version (version_num varchar(32))")
+        database.execute("INSERT INTO alembic_version VALUES ('e5f0c48f0c1d')")
+        database.execute("CREATE TABLE files (original_name TEXT, storage_name TEXT)")
+        database.execute("INSERT INTO files VALUES ('old.txt', 'old-uuid.txt')")
 
     environment = {
         key: value
@@ -96,14 +135,15 @@ def test_standalone_server_starts_and_persists_upload(tmp_path: Path) -> None:
                 assert payload["saved_filename"] == "smoke.txt"
                 assert payload["size"] == len(content)
 
-                stored_files = list(storage_dir.iterdir())
-                assert len(stored_files) == 1
-                assert stored_files[0].read_bytes() == content
+                assert (storage_dir / "smoke.txt").read_bytes() == content
+                assert (storage_dir / "old-uuid.txt").read_bytes() == b"legacy content"
                 with sqlite3.connect(database_path) as database:
-                    rows = database.execute(
-                        "SELECT original_name, storage_name FROM files"
-                    ).fetchall()
-                assert rows == [("old.txt", "old-uuid.txt")]
+                    assert (
+                        database.execute(
+                            "SELECT name FROM sqlite_master WHERE type='table' AND name='files'"
+                        ).fetchone()
+                        is None
+                    )
                 assert process.poll() is None
         except BaseException:
             print(log_path.read_text(encoding="utf-8", errors="replace"))
