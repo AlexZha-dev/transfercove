@@ -1,95 +1,122 @@
 import logging
+import os
+import re
+import tempfile
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import UploadFile
 
-from app.models.file import FileRecord
-from app.repository.file import FileRepository
-
 logger = logging.getLogger(__name__)
+WINDOWS_RESERVED = re.compile(r"^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)", re.I)
 
 
 class FileUploadError(RuntimeError):
-    """Raised when an uploaded file or its metadata cannot be persisted."""
+    """Raised when an uploaded file cannot be persisted."""
+
+
+@dataclass(frozen=True)
+class UploadedFile:
+    id: UUID
+    original_name: str
+    storage_name: str
+    content_type: str | None
+    size_bytes: int
+    created_at: datetime
+
+
+def safe_filename(filename: str) -> str:
+    """Discard paths and characters that are unsafe on Windows or Unix."""
+    name = re.split(r"[/\\]", filename)[-1]
+    name = re.sub(r'[\x00-\x1f\x7f<>:"|?*]', "_", name).strip(" .")
+    if not name:
+        name = "unnamed"
+    if WINDOWS_RESERVED.match(name):
+        name = "_" + name
+
+    # Leave room for a collision suffix, and respect both UTF-8 and UTF-16 limits.
+    suffix = Path(name).suffix
+    if len(suffix.encode("utf-8")) > 40:
+        suffix = ""
+    stem = name[: -len(suffix)] if suffix else name
+    while len((stem + suffix).encode("utf-8")) > 180:
+        stem = stem[:-1]
+    return (stem.rstrip(" .") or "unnamed") + suffix
 
 
 class FileService:
-    def __init__(self, session: AsyncSession, storage_dir: Path) -> None:
-        self.repository = FileRepository(session)
+    def __init__(self, storage_dir: Path) -> None:
         self.storage_dir = storage_dir
         try:
             self.storage_dir.mkdir(parents=True, exist_ok=True)
         except OSError as error:
             logger.exception(
-                "Upload storage directory is unavailable: path=%s",
-                self.storage_dir,
+                "Upload storage directory is unavailable: path=%s", storage_dir
             )
             raise FileUploadError(
-                "Cannot create or access the upload directory "
-                f"'{self.storage_dir}': {type(error).__name__}: {error}"
+                f"Cannot create or access the upload directory '{storage_dir}': "
+                f"{type(error).__name__}: {error}"
             ) from error
 
-    async def upload(self, upload: UploadFile) -> FileRecord:
-        file_id = uuid4()
-
+    async def upload(self, upload: UploadFile) -> UploadedFile:
         original_name = upload.filename or "unnamed"
-        extension = Path(original_name).suffix.lower()
-        storage_name = f"{file_id}{extension}"
-
-        final_path = self.storage_dir / storage_name
-        temporary_path = self.storage_dir / f".{storage_name}.tmp"
-
+        name = safe_filename(original_name)
+        temporary_path = None
         size = 0
-
-        stage = "writing the temporary file"
-
         try:
-            with temporary_path.open("wb") as output:
+            with tempfile.NamedTemporaryFile(
+                mode="wb",
+                prefix=".transfercove-",
+                suffix=".tmp",
+                dir=self.storage_dir,
+                delete=False,
+            ) as output:
+                temporary_path = Path(output.name)
                 while chunk := await upload.read(1024 * 1024):
                     output.write(chunk)
                     size += len(chunk)
 
-            stage = "moving the temporary file"
-            temporary_path.replace(final_path)
+            # Both operations publish a complete file without replacing a target.
+            # On Unix, rename can replace an existing file, so use a hard link.
+            stem, suffix = Path(name).stem, Path(name).suffix
+            number = 0
+            while True:
+                candidate = name if number == 0 else f"{stem} ({number}){suffix}"
+                try:
+                    destination = self.storage_dir / candidate
+                    if os.name == "nt":
+                        os.rename(temporary_path, destination)
+                    else:
+                        os.link(temporary_path, destination)
+                    break
+                except FileExistsError:
+                    number += 1
 
-            record = FileRecord(
-                id=file_id,
+            return UploadedFile(
+                id=uuid4(),
                 original_name=original_name,
-                storage_name=storage_name,
+                storage_name=candidate,
                 content_type=upload.content_type,
                 size_bytes=size,
+                created_at=datetime.now(UTC),
             )
-
-            stage = "saving file metadata to the database"
-            return await self.repository.create(record)
-
         except Exception as error:
             logger.exception(
-                "Upload failed: stage=%s filename=%r storage_dir=%s "
-                "temporary_path=%s final_path=%s",
-                stage,
+                "Upload failed: filename=%r storage_dir=%s",
                 original_name,
                 self.storage_dir,
-                temporary_path,
-                final_path,
             )
-            self._cleanup_upload_files(temporary_path, final_path)
-            if isinstance(error, FileUploadError):
-                raise
             raise FileUploadError(
-                f"Upload failed while {stage} for '{original_name}': "
-                f"{type(error).__name__}: {error}"
+                f"Cannot save '{original_name}': {type(error).__name__}: {error}"
             ) from error
-
         finally:
+            if temporary_path is not None:
+                try:
+                    temporary_path.unlink(missing_ok=True)
+                except OSError:
+                    logger.exception(
+                        "Could not remove temporary upload: path=%s", temporary_path
+                    )
             await upload.close()
-
-    @staticmethod
-    def _cleanup_upload_files(*paths: Path) -> None:
-        for path in paths:
-            try:
-                path.unlink(missing_ok=True)
-            except OSError:
-                logger.exception("Could not remove failed upload file: path=%s", path)

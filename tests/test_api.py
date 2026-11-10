@@ -37,6 +37,7 @@ def test_upload_endpoint_persists_file_and_metadata(client: TestClient) -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["filename"] == "greeting.txt"
+    assert payload["saved_filename"] == "greeting.txt"
     assert payload["size"] == len(b"hello from pytest")
     assert payload["content_type"] == "text/plain"
     assert payload["upload"]["remaining_seconds"] == 0
@@ -52,6 +53,23 @@ def test_upload_endpoint_requires_a_file(client: TestClient) -> None:
     response = client.post("/v1/files", data={})
 
     assert response.status_code == 422
+
+
+def test_upload_endpoint_renames_duplicate_without_overwriting(
+    client: TestClient,
+) -> None:
+    responses = [
+        client.post("/v1/files", files={"file": ("same.txt", content)})
+        for content in (b"first", b"second")
+    ]
+    assert [response.status_code for response in responses] == [200, 200]
+    assert [response.json()["saved_filename"] for response in responses] == [
+        "same.txt",
+        "same (1).txt",
+    ]
+    storage_dir = Path(client.app.state.settings.transmitter.storage_dir)
+    assert (storage_dir / "same.txt").read_bytes() == b"first"
+    assert (storage_dir / "same (1).txt").read_bytes() == b"second"
 
 
 def test_upload_endpoint_returns_upload_failure_details(

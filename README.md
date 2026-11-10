@@ -148,7 +148,7 @@ Once running, these endpoints are available:
 | `/docs` | Interactive FastAPI documentation |
 | `POST /v1/files` | Upload one file using the multipart `file` field |
 
-Uploaded files are stored under UUID-based names while preserving their original extension. Original names and metadata are kept in the database. The list, download, and delete API endpoints are currently placeholders.
+New uploads are saved with their original file names where possible. Unsafe characters are replaced, and duplicate names receive a numbered suffix without replacing existing files. New upload metadata is not stored in the database; existing file records and previously uploaded files are preserved. On Unix, the destination filesystem must support hard links so that completed uploads can be published without replacing existing files. The list, download, and delete API endpoints are currently placeholders.
 
 ### Run the test suite
 
@@ -162,7 +162,7 @@ The tests create temporary databases and storage directories, so they do not mod
 
 ### Automated pull request checks and development builds
 
-GitHub Actions runs dependency review, linting, formatting checks, and the full test suite on Windows and Linux only for pull requests. The tests include launching the standalone upload server, checking its HTTP endpoints, and verifying an uploaded file and its SQLite metadata. The Windows build constrains Flet's packaged Python dependencies to `poetry.lock` and verifies the generated bundle against the lock file.
+GitHub Actions runs dependency review, linting, formatting checks, and the full test suite on Windows and Linux only for pull requests. The tests include launching the standalone upload server, checking its HTTP endpoints, and verifying an uploaded file. The Windows build constrains Flet's packaged Python dependencies to `poetry.lock` and verifies the generated bundle against the lock file.
 
 After the checks pass, CI builds the Windows app and installer, silently installs it in temporary directories as both the current user and all users, and verifies desktop initialization and clean uninstallation. Pull requests also receive dependency review, and Dependabot proposes weekly dependency and workflow updates. Verified installers are available in the workflow run's **Artifacts** section as `TransferCove-test-<commit-sha>`. See [the CI guide](docs/ci.md) for local commands, diagnostics, and required PR checks.
 

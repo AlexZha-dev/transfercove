@@ -27,6 +27,13 @@ def test_standalone_server_starts_and_persists_upload(tmp_path: Path) -> None:
     storage_dir = tmp_path / "files"
     database_url = f"sqlite+aiosqlite:///{database_path.as_posix()}"
     upgrade_database(database_url)
+    # Preserve legacy records even though new uploads no longer write history.
+    with sqlite3.connect(database_path) as database:
+        database.execute(
+            "INSERT INTO files (id, original_name, storage_name, content_type, "
+            "size_bytes, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            ("a" * 32, "old.txt", "old-uuid.txt", "text/plain", 3, "2026-01-01"),
+        )
 
     environment = {
         key: value
@@ -86,16 +93,17 @@ def test_standalone_server_starts_and_persists_upload(tmp_path: Path) -> None:
                 response.raise_for_status()
                 payload = response.json()
                 assert payload["filename"] == "smoke.txt"
+                assert payload["saved_filename"] == "smoke.txt"
                 assert payload["size"] == len(content)
 
                 stored_files = list(storage_dir.iterdir())
                 assert len(stored_files) == 1
                 assert stored_files[0].read_bytes() == content
                 with sqlite3.connect(database_path) as database:
-                    row = database.execute(
-                        "SELECT original_name, storage_name, size_bytes FROM files"
-                    ).fetchone()
-                assert row == ("smoke.txt", stored_files[0].name, len(content))
+                    rows = database.execute(
+                        "SELECT original_name, storage_name FROM files"
+                    ).fetchall()
+                assert rows == [("old.txt", "old-uuid.txt")]
                 assert process.poll() is None
         except BaseException:
             print(log_path.read_text(encoding="utf-8", errors="replace"))
