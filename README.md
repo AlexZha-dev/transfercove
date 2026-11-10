@@ -148,6 +148,10 @@ Once running, these endpoints are available:
 | `/docs` | Interactive FastAPI documentation |
 | `POST /v1/files` | Upload one file using the multipart `file` field |
 
+Upload limits are configured in desktop settings and apply to each receiving server: by default one file may be up to 1024 MiB, two uploads may run simultaneously, 512 MiB of free disk space is reserved, and an upload times out after 60 seconds without incoming data. Each request accepts one file; the browser sends multiple selected files sequentially. Free-space checks cover both the system temporary directory and the destination and cannot reserve space against other processes. A multipart request also has 64 KiB of overhead available for headers and boundaries, and part headers are separately limited by the multipart parser.
+
+For the standalone server, use `.env` or environment variables such as `UPLOAD_LIMITS__MAX_FILE_MIB`, `UPLOAD_LIMITS__MAX_CONCURRENT`, `UPLOAD_LIMITS__RESERVE_MIB`, and `UPLOAD_LIMITS__IDLE_TIMEOUT_SECONDS`. Desktop settings are saved separately and take precedence after initial setup. Limits apply per server process; transfer-rate and request-rate throttling are not implemented.
+
 New uploads are saved with their original file names where possible. Unsafe characters are replaced, and duplicate names receive a numbered suffix without replacing existing files. Upload history is not stored in the database. Automatic cleanup deletes old file-history records when the legacy SQLite database is accessible; if cleanup fails, it is retried on the next start. Previously uploaded UUID-named files remain on disk, but their original names cannot be recovered from deleted records. Non-SQLite legacy databases require a manual Alembic migration. On Unix, the destination filesystem must support hard links so that completed uploads can be published without replacing existing files. The list, download, and delete API endpoints are currently placeholders.
 
 ### Run the test suite

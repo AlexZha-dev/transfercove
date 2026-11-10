@@ -290,7 +290,16 @@ function uploadFile(item, index) {
         return;
       }
 
-      let serverMessage = t("serverError", { status: xhr.status });
+      const errorKeys = {
+        400: "uploadInvalid",
+        408: "uploadTimedOut",
+        413: "uploadTooLarge",
+        429: "uploadBusy",
+        507: "uploadNoSpace",
+      };
+      let serverMessage = errorKeys[xhr.status]
+        ? t(errorKeys[xhr.status])
+        : t("serverError", { status: xhr.status });
       try {
         const payload = JSON.parse(xhr.responseText);
         if (payload.detail) serverMessage = `${serverMessage} — ${payload.detail}`;
