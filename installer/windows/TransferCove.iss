@@ -9,6 +9,10 @@
 #ifndef MyAppId
   #define MyAppId "{A6F4C3F3-2DA6-4AF4-9E2F-7C0A0200BEEF}"
 #endif
+; Reject extra quotes or other accidental changes to the uninstall registry key.
+#if Len(MyAppId) != 38 || Copy(MyAppId, 1, 1) != "{" || Copy(MyAppId, 38, 1) != "}"
+  #error "MyAppId must be a GUID enclosed in braces, without quotes"
+#endif
 #ifndef MyAppVersion
   #define MyAppVersion GetStringFileInfo(BuildDir + "\" + MyAppExeName, "ProductVersion")
 #endif

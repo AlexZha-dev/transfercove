@@ -22,7 +22,7 @@ try {
     if ($InstallerName -notmatch '^[A-Za-z0-9._-]+$') { throw 'Invalid installer filename' }
 
     $appIdValue = '{' + $AppId.ToString().ToUpperInvariant() + '}'
-    & $CompilerPath '/Qp' "/DMyAppVersion=$version" "/DInstallerName=$InstallerName" "/DMyAppId=`"$appIdValue`"" 'installer/windows/TransferCove.iss'
+    & $CompilerPath '/Qp' "/DMyAppVersion=$version" "/DInstallerName=$InstallerName" "/DMyAppId=$appIdValue" 'installer/windows/TransferCove.iss'
     if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compilation failed' }
 
     $installerPath = Join-Path $projectRoot "dist/installer/$InstallerName.exe"
