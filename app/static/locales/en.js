@@ -29,6 +29,7 @@ window.UPLOAD_LOCALES.en = {
   queued: "Queued",
   uploading: "Uploading...",
   done: "Complete",
+  savedAs: "Saved as: {{filename}}",
   error: "Error",
   stopped: "Stopped",
   ready: "Ready to upload",

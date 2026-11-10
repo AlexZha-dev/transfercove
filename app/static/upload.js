@@ -129,6 +129,7 @@ function renderFileList() {
           <span class="file-size"></span>
           <span class="file-status"></span>
         </div>
+        <div class="file-saved-name" hidden></div>
         <div class="progress-track">
           <div class="file-progress-fill"></div>
         </div>
@@ -155,6 +156,7 @@ function updateFileRow(index) {
   const progress = row.querySelector(".file-progress-fill");
   const percentLabel = row.querySelector(".file-percent");
   const statusLabel = row.querySelector(".file-status");
+  const savedNameLabel = row.querySelector(".file-saved-name");
 
   row.classList.toggle("is-active", item.status === "uploading");
   row.classList.toggle("is-done", item.status === "done");
@@ -163,6 +165,12 @@ function updateFileRow(index) {
   progress.style.width = `${percent}%`;
   percentLabel.textContent = `${percent}%`;
   statusLabel.textContent = getFileStatus(item);
+  const wasRenamed = item.status === "done" && item.savedFilename &&
+    item.savedFilename !== item.file.name;
+  savedNameLabel.hidden = !wasRenamed;
+  savedNameLabel.textContent = wasRenamed
+    ? t("savedAs", { filename: item.savedFilename })
+    : "";
 }
 
 function updateOverallProgress() {
@@ -209,6 +217,7 @@ function selectFiles(fileListValue) {
     uploaded: 0,
     speed: 0,
     error: "",
+    savedFilename: "",
   }));
 
   state.startedAt = 0;
@@ -241,6 +250,7 @@ function uploadFile(item, index) {
     };
 
     item.status = "uploading";
+    item.savedFilename = "";
     updateFileRow(index);
     state.currentXhr = xhr;
     xhr.open("POST", "/v1/files");
@@ -261,6 +271,14 @@ function uploadFile(item, index) {
       if (settled) return;
 
       if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const payload = JSON.parse(xhr.responseText);
+          if (typeof payload?.saved_filename === "string") {
+            item.savedFilename = payload.saved_filename;
+          }
+        } catch (_error) {
+          // A successful upload may come from an older server without metadata.
+        }
         settled = true;
         state.currentXhr = null;
         item.status = "done";
