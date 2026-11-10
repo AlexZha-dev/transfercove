@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import ntpath
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from pathlib import Path
@@ -98,9 +99,23 @@ def test_simultaneous_uploads_do_not_overwrite(tmp_path: Path) -> None:
         ("../../photo.txt", "photo.txt"),
         (r"C:\\tmp\\photo.txt", "photo.txt"),
         ("CON.txt", "_CON.txt"),
+        ("CON .txt", "_CON.txt"),
+        ("NUL .txt", "_NUL.txt"),
+        ("COM\u00b9.txt", "_COM\u00b9.txt"),
+        ("LPT\u00b2.txt", "_LPT\u00b2.txt"),
+        ("aux .tar.gz", "_aux .tar.gz"),
         ("..", "unnamed"),
         ("a:b?.txt", "a_b_.txt"),
     ],
 )
 def test_safe_filename(name: str, expected: str) -> None:
     assert safe_filename(name) == expected
+    assert not ntpath.isreserved(safe_filename(name))
+
+
+def test_reserved_filename_uploads_preserve_existing_files(tmp_path: Path) -> None:
+    (tmp_path / "_CON.txt").write_bytes(b"existing")
+    result = run(FileService(tmp_path).upload(make_upload(b"new", "CON .txt")))
+    assert result.storage_name == "_CON (1).txt"
+    assert (tmp_path / "_CON.txt").read_bytes() == b"existing"
+    assert (tmp_path / result.storage_name).read_bytes() == b"new"

@@ -1,4 +1,5 @@
 import logging
+import ntpath
 import os
 import re
 import tempfile
@@ -10,7 +11,6 @@ from uuid import UUID, uuid4
 from starlette.datastructures import UploadFile
 
 logger = logging.getLogger(__name__)
-WINDOWS_RESERVED = re.compile(r"^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)", re.I)
 
 
 class FileUploadError(RuntimeError):
@@ -33,17 +33,19 @@ def safe_filename(filename: str) -> str:
     name = re.sub(r'[\x00-\x1f\x7f<>:"|?*]', "_", name).strip(" .")
     if not name:
         name = "unnamed"
-    if WINDOWS_RESERVED.match(name):
-        name = "_" + name
 
     # Leave room for a collision suffix, and respect both UTF-8 and UTF-16 limits.
     suffix = Path(name).suffix
     if len(suffix.encode("utf-8")) > 40:
         suffix = ""
     stem = name[: -len(suffix)] if suffix else name
-    while len((stem + suffix).encode("utf-8")) > 180:
+    # Reserve a byte for the prefix needed by Windows device names.
+    while len((stem + suffix).encode("utf-8")) > 179:
         stem = stem[:-1]
-    return (stem.rstrip(" .") or "unnamed") + suffix
+    name = (stem.rstrip(" .") or "unnamed") + suffix
+    # Check the final name on every platform, including superscript COM/LPT
+    # digits and names that became reserved after trimming the stem.
+    return "_" + name if ntpath.isreserved(name) else name
 
 
 class FileService:
