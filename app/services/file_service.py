@@ -72,6 +72,7 @@ class FileService:
         temporary_path = None
         size = 0
         try:
+            check_space(self.storage_dir, reserve_bytes)
             with tempfile.NamedTemporaryFile(
                 mode="wb",
                 prefix=".transfercove-",

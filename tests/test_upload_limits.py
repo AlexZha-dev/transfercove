@@ -250,3 +250,66 @@ def test_destination_space_failure_cleans_temporary_upload(limited_client, monke
     assert response.status_code == 507
     assert list(destination.iterdir()) == []
     assert limited_client.app.state.active_uploads == 0
+
+
+def test_large_multipart_headers_are_rejected(limited_client):
+    body = (
+        b'--abc\r\nContent-Disposition: form-data; name="file"; filename="'
+        + b"x" * 17000
+        + b'"\r\n\r\nhello\r\n--abc--\r\n'
+    )
+    response = limited_client.post(
+        "/v1/files",
+        content=body,
+        headers={"content-type": "multipart/form-data; boundary=abc"},
+    )
+    assert response.status_code == 400
+    assert limited_client.app.state.active_uploads == 0
+    assert (
+        list(limited_client.app.state.settings.transmitter.storage_dir.iterdir()) == []
+    )
+
+
+def test_cancelled_request_releases_upload_slot(tmp_path):
+    import httpx
+
+    async def scenario():
+        settings = Settings(
+            _env_file=None,
+            transmitter=TransmitterSettings(
+                storage_dir=tmp_path / "files",
+                database_url=f"sqlite+aiosqlite:///{(tmp_path / 'missing.db').as_posix()}",
+            ),
+            upload_limits=UploadLimits(
+                max_file_mib=1, max_concurrent=1, reserve_mib=0, idle_timeout_seconds=5
+            ),
+        )
+        app = create_app(settings)
+        entered = asyncio.Event()
+
+        async def body():
+            yield b'--abc\r\nContent-Disposition: form-data; name="file"; filename="one.txt"\r\n\r\npartial'
+            entered.set()
+            await asyncio.Event().wait()
+
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            task = asyncio.create_task(
+                client.post(
+                    "/v1/files",
+                    content=body(),
+                    headers={"content-type": "multipart/form-data; boundary=abc"},
+                )
+            )
+            await asyncio.wait_for(entered.wait(), 2)
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+            assert app.state.active_uploads == 0
+            assert list((tmp_path / "files").iterdir()) == []
+            assert (
+                await client.post("/v1/files", files={"file": ("two.txt", b"two")})
+            ).status_code == 200
+
+    asyncio.run(scenario())
