@@ -50,8 +50,6 @@ class SettingsService:
     async def save(self, settings: Settings) -> Settings:
         async with self.database.transaction() as session:
             repository = SettingsRepository(session)
-            await repository.save(
-                ApplicationSettingsRecord.from_settings(settings)
-            )
+            await repository.save(ApplicationSettingsRecord.from_settings(settings))
 
         return settings

@@ -1,0 +1,4 @@
+# Review workflow, installer, and dependency-lock changes before merging.
+/.github/ @AlexZha-dev
+/poetry.lock @AlexZha-dev
+/pyproject.toml @AlexZha-dev

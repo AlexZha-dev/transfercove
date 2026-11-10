@@ -1,0 +1,144 @@
+name: CI
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  POETRY_VERSION: '2.5.1'
+  POETRY_VIRTUALENVS_IN_PROJECT: 'true'
+  POETRY_NO_INTERACTION: '1'
+  PYTHONUTF8: '1'
+
+jobs:
+  checks:
+    name: Tests and lint (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    steps:
+      - name: Check out the pull request merge commit or branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14'
+      - name: Install Poetry
+        run: python -m pip install "poetry==${{ env.POETRY_VERSION }}"
+      - name: Install locked dependencies
+        run: poetry install --with dev
+      - name: Validate project and lock file
+        run: poetry check --lock
+      - name: Lint Python sources
+        run: poetry run ruff check app tests tools main.py alembic
+      - name: Check Python formatting
+        run: poetry run ruff format --check app tests tools main.py alembic
+      - name: Test installer smoke failure detection
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./.github/scripts/test-smoke-installer.ps1
+      - name: Prepare the test report directory
+        run: python -c "from pathlib import Path; Path('test-results').mkdir(parents=True, exist_ok=True)"
+      - name: Run unit, integration, and upload server smoke tests
+        run: poetry run pytest --junitxml=test-results/pytest.xml
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-results-${{ matrix.os }}-${{ github.sha }}
+          path: test-results/pytest.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
+  dependency-review:
+    name: Dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Check changed dependencies for known vulnerabilities
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+
+  windows-installer:
+    name: Windows installer
+    needs: [checks, dependency-review]
+    if: ${{ !cancelled() && needs.checks.result == 'success' && (needs.dependency-review.result == 'success' || needs.dependency-review.result == 'skipped') }}
+    runs-on: windows-2022
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14'
+      - name: Install Poetry
+        run: python -m pip install "poetry==$env:POETRY_VERSION"
+      - name: Install locked build dependencies
+        run: poetry install --with dev,build
+      - name: Enable Windows symlink support
+        run: |
+          New-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock' `
+            -Name AllowDevelopmentWithoutDevLicense -Value 1 -PropertyType DWord -Force
+      - name: Build and verify the Windows application with locked runtime dependencies
+        run: |
+          poetry run python tools/export_flet_constraints.py --output test-results/flet-runtime-constraints.txt
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot export Poetry runtime constraints' }
+          $version = poetry version --short
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot read project version' }
+          $env:PIP_CONSTRAINT = (Resolve-Path 'test-results/flet-runtime-constraints.txt').Path
+          try {
+            poetry run flet build windows --yes --no-rich-output --python-version 3.14 --build-version $version --build-number $env:GITHUB_RUN_NUMBER
+            if ($LASTEXITCODE -ne 0) { throw 'Flet build failed' }
+          }
+          finally {
+            Remove-Item Env:PIP_CONSTRAINT -ErrorAction SilentlyContinue
+          }
+      - name: Verify the packaged Python dependencies match poetry.lock
+        run: poetry run python tools/verify_flet_bundle.py --site-packages build/site-packages
+      - name: Build installer
+        id: installer
+        run: ./.github/scripts/build-installer.ps1 -InstallerName "TransferCove-test-$env:GITHUB_SHA"
+      - name: Install and launch the application
+        env:
+          INSTALLER_PATH: ${{ steps.installer.outputs.installer-path }}
+        run: |
+          ./.github/scripts/smoke-installer.ps1 -InstallerPath $env:INSTALLER_PATH -InstallMode CurrentUser -LogDirectory test-results/installer/current-user
+          ./.github/scripts/smoke-installer.ps1 -InstallerPath $env:INSTALLER_PATH -InstallMode AllUsers -LogDirectory test-results/installer/all-users
+      - name: Upload verified installer
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: TransferCove-test-${{ github.sha }}
+          path: ${{ steps.installer.outputs.installer-path }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+      - name: Upload installer diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: installer-logs-${{ github.sha }}
+          path: test-results/installer/
+          if-no-files-found: ignore
+          retention-days: 7

@@ -201,9 +201,7 @@ class MainPage:
         """Persist acknowledgement and continue any configured automatic start."""
 
         try:
-            await self.security_preferences.set(
-                SECURITY_NOTICE_PREFERENCE_KEY, True
-            )
+            await self.security_preferences.set(SECURITY_NOTICE_PREFERENCE_KEY, True)
         except ft.FletUnsupportedPlatformException:
             # The dialog is still informative on a platform without persistence.
             pass
@@ -226,7 +224,10 @@ class MainPage:
         self.brand_text = ft.Column(
             controls=[
                 ft.Text(
-                    "Transfer", size=20, weight=ft.FontWeight.W_700, color=COLORS["text"]
+                    "Transfer",
+                    size=20,
+                    weight=ft.FontWeight.W_700,
+                    color=COLORS["text"],
                 ),
                 ft.Text(
                     "COVE",
@@ -396,6 +397,8 @@ class MainPage:
 async def main(page: ft.Page) -> None:
     application = MainPage(page)
     await application.initialize()
+    # The installed Flet application captures stdout in console.log.
+    print("TransferCove desktop initialized", flush=True)
 
 
 def run() -> None:
