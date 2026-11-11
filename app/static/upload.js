@@ -294,6 +294,7 @@ function uploadFile(item, index) {
         400: "uploadInvalid",
         408: "uploadTimedOut",
         413: "uploadTooLarge",
+        422: "uploadInvalid",
         429: "uploadBusy",
         507: "uploadNoSpace",
       };

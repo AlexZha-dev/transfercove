@@ -3,6 +3,7 @@ from time import perf_counter
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel
 from python_multipart.exceptions import MultipartParseError
 from starlette.datastructures import UploadFile
 from starlette.formparsers import MultiPartException
@@ -19,8 +20,23 @@ files_router = APIRouter(prefix="/files", tags=["files"])
 logger = logging.getLogger(__name__)
 
 
+class UploadErrorResponse(BaseModel):
+    detail: str
+
+
 @files_router.post(
     "",
+    responses={
+        status: {"model": UploadErrorResponse, "description": description}
+        for status, description in {
+            400: "Malformed or incomplete multipart request, or too many parts",
+            408: "No incoming data within the configured inactivity timeout",
+            413: "File or request exceeds the configured size limit",
+            422: "Exactly one multipart file field named 'file' is required",
+            429: "All simultaneous upload slots are occupied",
+            507: "Insufficient free space, or available space cannot be checked",
+        }.items()
+    },
     openapi_extra={
         "requestBody": {
             "required": True,

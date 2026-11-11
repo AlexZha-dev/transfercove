@@ -199,6 +199,13 @@ def test_openapi_describes_file_input(limited_client):
     operation = limited_client.get("/openapi.json").json()["paths"]["/v1/files"]["post"]
     schema = operation["requestBody"]["content"]["multipart/form-data"]["schema"]
     assert schema["properties"]["file"]["format"] == "binary"
+    document = limited_client.get("/openapi.json").json()
+    for status in (400, 408, 413, 422, 429, 507):
+        response = operation["responses"][str(status)]
+        reference = response["content"]["application/json"]["schema"]["$ref"]
+        error_schema = document["components"]["schemas"][reference.rsplit("/", 1)[1]]
+        assert error_schema["properties"]["detail"]["type"] == "string"
+        assert "detail" in error_schema["required"]
 
 
 @pytest.mark.parametrize("ending", [b"", b"\r\n--abc\r\n", b"\r\n--abc-", b"\r\n--ab"])
