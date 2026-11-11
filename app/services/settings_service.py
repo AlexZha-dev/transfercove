@@ -6,6 +6,7 @@ from sqlalchemy.sql.schema import Table
 from app.core.db import Database
 from app.core.settings import Settings
 from app.models.application_settings import ApplicationSettingsRecord
+from app.models.upload_limits import UploadLimitsRecord
 from app.repository.settings import SettingsRepository
 
 
@@ -18,7 +19,13 @@ class SettingsService:
             cast(Table, ApplicationSettingsRecord.__table__)
         )
 
+        await self.database.create_table(cast(Table, UploadLimitsRecord.__table__))
+
         async with self.database.transaction() as session:
+            limits = await session.get(UploadLimitsRecord, 1)
+            if limits is None:
+                limits = UploadLimitsRecord.from_limits(fallback.upload_limits)
+                session.add(limits)
             repository = SettingsRepository(session)
             record = await repository.get()
 
@@ -38,6 +45,7 @@ class SettingsService:
             saved = record.to_settings()
             return saved.model_copy(
                 update={
+                    "upload_limits": limits.to_limits(),
                     "uvicorn": saved.uvicorn.model_copy(
                         update={"log_level": fallback.uvicorn.log_level}
                     ),
@@ -51,5 +59,11 @@ class SettingsService:
         async with self.database.transaction() as session:
             repository = SettingsRepository(session)
             await repository.save(ApplicationSettingsRecord.from_settings(settings))
+            limits = await session.get(UploadLimitsRecord, 1)
+            if limits is None:
+                session.add(UploadLimitsRecord.from_limits(settings.upload_limits))
+            else:
+                for name, value in settings.upload_limits.model_dump().items():
+                    setattr(limits, name, value)
 
         return settings

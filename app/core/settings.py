@@ -40,6 +40,13 @@ class TransmitterSettings(BaseModel):
     database_url: str = "sqlite+aiosqlite:///./.data/files.db"
 
 
+class UploadLimits(BaseModel):
+    max_file_mib: int = Field(default=1024, ge=1, le=1048576)
+    max_concurrent: int = Field(default=2, ge=1, le=100)
+    reserve_mib: int = Field(default=512, ge=0, le=1048576)
+    idle_timeout_seconds: int = Field(default=60, ge=1, le=86400)
+
+
 class DesktopConfig(BaseModel):
     language: str = "en"
     auto_start: bool = False
@@ -53,6 +60,7 @@ class Settings(BaseSettings):
     uvicorn: UvicornConfig = Field(default_factory=UvicornConfig)
     transmitter: TransmitterSettings = Field(default_factory=TransmitterSettings)
     desktop: DesktopConfig = Field(default_factory=DesktopConfig)
+    upload_limits: UploadLimits = Field(default_factory=UploadLimits)
 
     model_config = SettingsConfigDict(
         env_file=".env",

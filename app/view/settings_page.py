@@ -10,6 +10,7 @@ from app.core.settings import (
     DesktopConfig,
     Settings,
     TransmitterSettings,
+    UploadLimits,
     UvicornConfig,
 )
 from app.core.theme import (
@@ -73,6 +74,19 @@ class SettingsPage:
             "Storage directory",
             str(settings.transmitter.storage_dir),
             expand=True,
+        )
+        limits = settings.upload_limits
+        self.max_file_mib = text_field(
+            "Maximum file size (MiB)", str(limits.max_file_mib)
+        )
+        self.max_concurrent = text_field(
+            "Simultaneous uploads", str(limits.max_concurrent)
+        )
+        self.reserve_mib = text_field(
+            "Free disk reserve (MiB)", str(limits.reserve_mib)
+        )
+        self.idle_timeout = text_field(
+            "Upload inactivity timeout (seconds)", str(limits.idle_timeout_seconds)
         )
         self.language = ft.Dropdown(
             label="Language",
@@ -182,6 +196,17 @@ class SettingsPage:
                                             size=12,
                                             color=COLORS["muted"],
                                         ),
+                                    ],
+                                ),
+                                self.settings_section(
+                                    "Upload limits",
+                                    "Protect storage while receiving files.",
+                                    ft.Icons.SECURITY_ROUNDED,
+                                    [
+                                        self.max_file_mib,
+                                        self.max_concurrent,
+                                        self.reserve_mib,
+                                        self.idle_timeout,
                                     ],
                                 ),
                                 self.settings_section(
@@ -372,6 +397,12 @@ class SettingsPage:
                 transmitter=TransmitterSettings(
                     storage_dir=Path(self.storage_path.value or ".data/files"),
                     database_url=current_settings.transmitter.database_url,
+                ),
+                upload_limits=UploadLimits(
+                    max_file_mib=int(self.max_file_mib.value or ""),
+                    max_concurrent=int(self.max_concurrent.value or ""),
+                    reserve_mib=int(self.reserve_mib.value or ""),
+                    idle_timeout_seconds=int(self.idle_timeout.value or ""),
                 ),
                 desktop=DesktopConfig(
                     language=self.language.value or "en",

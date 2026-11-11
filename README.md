@@ -148,6 +148,25 @@ Once running, these endpoints are available:
 | `/docs` | Interactive FastAPI documentation |
 | `POST /v1/files` | Upload one file using the multipart `file` field |
 
+Upload limits are configured in desktop settings and apply to each receiving server: by default one file may be up to 1024 MiB, two uploads may run simultaneously, 512 MiB of free disk space is reserved, and an upload times out after 60 seconds without incoming data. Each request accepts one file; the browser sends multiple selected files sequentially. A multipart request also has 64 KiB of overhead available for headers and boundaries, and part headers are separately limited by the multipart parser.
+
+Free-space checks cover both the system temporary directory and the destination. Checks account for the whole buffered file when it first spills from memory to disk. Each server instance serializes its disk checks, writes, and buffer flushes so its uploads do not spend the same available space concurrently. This is a best-effort reserve: other processes and server instances can still consume disk space. A file is published only after the complete multipart message is received. Rejected, timed-out, and cancelled requests close their temporary files and release their upload slot; cancellation waits for any in-flight disk write to finish before cleanup.
+
+For the standalone server, use the `UPLOAD_LIMITS__MAX_FILE_MIB`, `UPLOAD_LIMITS__MAX_CONCURRENT`, `UPLOAD_LIMITS__RESERVE_MIB`, and `UPLOAD_LIMITS__IDLE_TIMEOUT_SECONDS` variables shown in `.env.example`. Desktop settings are saved separately and take precedence after initial setup.
+
+Upload failures return JSON with a string `detail` field, and the browser shows a corresponding error:
+
+| Status | Meaning |
+| :--- | :--- |
+| `400` | Malformed or incomplete multipart request, or too many parts |
+| `408` | No data arrived within the inactivity timeout |
+| `413` | File or request exceeds the size limit |
+| `422` | Expected exactly one multipart file field named `file` |
+| `429` | All simultaneous upload slots are occupied; retry later |
+| `507` | Insufficient disk space, or available space could not be checked |
+
+The timeout measures inactivity, not total upload duration. A slow client that keeps sending data can continue occupying a slot; the receiver can stop the server manually. Transfer-rate throttling, per-client request-rate limits, and a total upload deadline are deferred follow-ups to issue #7 for this personal, manually enabled receiver. They are not enforced by the current limits.
+
 New uploads are saved with their original file names where possible. Unsafe characters are replaced, and duplicate names receive a numbered suffix without replacing existing files. Upload history is not stored in the database. Automatic cleanup deletes old file-history records when the legacy SQLite database is accessible; if cleanup fails, it is retried on the next start. Previously uploaded UUID-named files remain on disk, but their original names cannot be recovered from deleted records. Non-SQLite legacy databases require a manual Alembic migration. On Unix, the destination filesystem must support hard links so that completed uploads can be published without replacing existing files. The list, download, and delete API endpoints are currently placeholders.
 
 ### Run the test suite

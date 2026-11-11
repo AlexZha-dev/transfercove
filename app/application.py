@@ -9,6 +9,7 @@ from app.core.settings import settings as default_settings
 from app.routes.api_v1 import api_v1
 from app.routes.health import health_router
 from app.routes.static import register_static
+from app.services.disk_space_service import DiskSpaceGuard
 
 
 def create_app(
@@ -35,6 +36,8 @@ def create_app(
     )
 
     app.state.settings = config
+    app.state.active_uploads = 0
+    app.state.disk_space_guard = DiskSpaceGuard()
 
     @app.middleware("http")
     async def request_timer(request: Request, call_next):
