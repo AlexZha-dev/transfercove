@@ -43,7 +43,6 @@ async def upload_file(request: Request):
         raise HTTPException(status_code=429, detail="Too many simultaneous uploads")
     request.app.state.active_uploads += 1
     parser = None
-    form = None
     try:
         if (
             not request.headers.get("content-type", "")
@@ -126,11 +125,8 @@ async def upload_file(request: Request):
         raise HTTPException(status_code=500, detail=str(error)) from error
     finally:
         try:
-            if form is not None:
-                await form.close()
-            elif parser is not None:
-                for temporary_file in parser._files_to_close_on_error:
-                    temporary_file.close()
+            if parser is not None:
+                await parser.close()
         finally:
             request.app.state.active_uploads -= 1
 

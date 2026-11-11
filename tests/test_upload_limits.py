@@ -11,6 +11,22 @@ from app.core.upload_limits import UploadLimitError, limited_stream
 
 
 @pytest.fixture
+def opened_spools(monkeypatch):
+    from starlette import formparsers
+
+    opened = []
+    original = formparsers.SpooledTemporaryFile
+
+    def track(*args, **kwargs):
+        file = original(*args, **kwargs)
+        opened.append(file)
+        return file
+
+    monkeypatch.setattr(formparsers, "SpooledTemporaryFile", track)
+    return opened
+
+
+@pytest.fixture
 def limited_client(tmp_path: Path):
     config = Settings(
         _env_file=None,
@@ -185,7 +201,64 @@ def test_openapi_describes_file_input(limited_client):
     assert schema["properties"]["file"]["format"] == "binary"
 
 
-def test_stalled_request_closes_spooled_file_and_releases_slot(tmp_path, monkeypatch):
+@pytest.mark.parametrize("ending", [b"", b"\r\n--abc\r\n", b"\r\n--abc-", b"\r\n--ab"])
+def test_incomplete_multipart_rejected_and_all_spools_closed(
+    limited_client, monkeypatch, opened_spools, ending
+):
+    from app.core.upload_limits import LimitedMultipartParser
+
+    monkeypatch.setattr(LimitedMultipartParser, "spool_max_size", 8)
+    body = (
+        b'--abc\r\nContent-Disposition: form-data; name="file"; filename="incomplete.txt"\r\n\r\n'
+        + b"x" * 100
+        + ending
+    )
+    response = limited_client.post(
+        "/v1/files",
+        content=body,
+        headers={"content-type": "multipart/form-data; boundary=abc"},
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Incomplete multipart upload"
+    assert opened_spools and all(file.closed for file in opened_spools)
+    assert limited_client.app.state.active_uploads == 0
+    assert (
+        list(limited_client.app.state.settings.transmitter.storage_dir.iterdir()) == []
+    )
+    response = limited_client.post("/v1/files", files={"file": ("ok", b"ok")})
+    assert response.status_code == 200
+    assert all(file.closed for file in opened_spools)
+
+
+def test_final_boundary_split_across_chunks_is_accepted(limited_client, opened_spools):
+    import httpx
+
+    async def body():
+        yield b'--abc\r\nContent-Disposition: form-data; name="file"; filename="ok"\r\n\r\ncontent'
+        for byte in b"\r\n--abc--\r\n":
+            yield bytes([byte])
+
+    async def scenario():
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=limited_client.app),
+            base_url="http://test",
+        ) as client:
+            response = await client.post(
+                "/v1/files",
+                content=body(),
+                headers={"content-type": "multipart/form-data; boundary=abc"},
+            )
+            assert response.status_code == 200
+            storage = limited_client.app.state.settings.transmitter.storage_dir
+            assert (storage / "ok").read_bytes() == b"content"
+            assert all(file.closed for file in opened_spools)
+
+    asyncio.run(scenario())
+
+
+def test_stalled_request_closes_spooled_file_and_releases_slot(
+    tmp_path, monkeypatch, opened_spools
+):
     import tempfile
 
     import httpx
@@ -224,6 +297,7 @@ def test_stalled_request_closes_spooled_file_and_releases_slot(tmp_path, monkeyp
                 headers={"content-type": "multipart/form-data; boundary=abc"},
             )
             assert response.status_code == 408
+            assert opened_spools and all(file.closed for file in opened_spools)
             assert app.state.active_uploads == 0
             assert list((tmp_path / "files").iterdir()) == []
             assert sorted(item.name for item in tmp_path.iterdir()) == ["files"]
@@ -307,8 +381,12 @@ def test_large_multipart_headers_are_rejected(limited_client):
     )
 
 
-def test_cancelled_request_releases_upload_slot(tmp_path):
+def test_cancelled_request_releases_upload_slot(tmp_path, monkeypatch, opened_spools):
     import httpx
+
+    from app.core.upload_limits import LimitedMultipartParser
+
+    monkeypatch.setattr(LimitedMultipartParser, "spool_max_size", 8)
 
     async def scenario():
         settings = Settings(
@@ -325,7 +403,7 @@ def test_cancelled_request_releases_upload_slot(tmp_path):
         entered = asyncio.Event()
 
         async def body():
-            yield b'--abc\r\nContent-Disposition: form-data; name="file"; filename="one.txt"\r\n\r\npartial'
+            yield b'--abc\r\nContent-Disposition: form-data; name="file"; filename="one.txt"\r\n\r\npartial contents'
             entered.set()
             await asyncio.Event().wait()
 
@@ -343,6 +421,7 @@ def test_cancelled_request_releases_upload_slot(tmp_path):
             task.cancel()
             with pytest.raises(asyncio.CancelledError):
                 await task
+            assert opened_spools and all(file.closed for file in opened_spools)
             assert app.state.active_uploads == 0
             assert list((tmp_path / "files").iterdir()) == []
             assert (

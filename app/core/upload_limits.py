@@ -8,7 +8,7 @@ from threading import Lock
 from typing import BinaryIO, TypeVar
 
 from anyio import CancelScope
-from starlette.datastructures import UploadFile
+from starlette.datastructures import FormData, UploadFile
 from starlette.formparsers import MultiPartException, MultiPartParser
 
 T = TypeVar("T")
@@ -149,10 +149,36 @@ class LimitedMultipartParser(MultiPartParser):
         self.reserve = reserve
         self.file_bytes = 0
         self.disk_guard = disk_guard or DiskSpaceGuard()
+        self._finished = False
 
-    async def parse(self):
-        await self.disk_guard.check(Path(tempfile.gettempdir()), self.reserve)
-        return await super().parse()
+    async def parse(self) -> FormData:
+        try:
+            await self.disk_guard.check(Path(tempfile.gettempdir()), self.reserve)
+            form = await super().parse()
+            # python-multipart's finalize() does not validate the final boundary.
+            if not self._finished:
+                raise MultiPartException("Incomplete multipart upload")
+            return form
+        except BaseException:
+            await self.close()
+            raise
+
+    def on_end(self) -> None:
+        self._finished = True
+
+    async def close(self) -> None:
+        # Incomplete parts are not in FormData, but still own temporary files.
+        await run_disk_io(self._close_files)
+
+    def _close_files(self) -> None:
+        first_error = None
+        for file in self._files_to_close_on_error:
+            try:
+                file.close()
+            except OSError as error:
+                first_error = first_error or error
+        if first_error is not None:
+            raise first_error
 
     def on_headers_finished(self) -> None:
         super().on_headers_finished()
