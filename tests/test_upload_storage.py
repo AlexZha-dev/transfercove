@@ -7,11 +7,8 @@ from types import SimpleNamespace
 import pytest
 from starlette.datastructures import Headers
 
-from app.core.upload_limits import (
-    DiskSpaceGuard,
-    LimitedMultipartParser,
-    UploadLimitError,
-)
+from app.core.upload_limits import LimitedMultipartParser
+from app.services.disk_space_service import DiskSpaceError, DiskSpaceGuard
 
 
 @pytest.mark.parametrize(
@@ -50,7 +47,7 @@ def test_spooling_preserves_reserve_across_buffered_and_fragmented_writes(
         )
 
     monkeypatch.setattr("starlette.formparsers.SpooledTemporaryFile", spool)
-    monkeypatch.setattr("app.core.upload_limits.shutil.disk_usage", usage)
+    monkeypatch.setattr("app.services.disk_space_service.shutil.disk_usage", usage)
     monkeypatch.setattr(LimitedMultipartParser, "spool_max_size", 8)
 
     async def body():
@@ -73,9 +70,8 @@ def test_spooling_preserves_reserve_across_buffered_and_fragmented_writes(
             finally:
                 await form.close()
         else:
-            with pytest.raises(UploadLimitError) as error:
+            with pytest.raises(DiskSpaceError, match="Not enough free disk space"):
                 await parser.parse()
-            assert error.value.status_code == 507
 
     asyncio.run(scenario())
     assert opened and all(file.closed for file in opened)
@@ -105,7 +101,7 @@ def test_concurrent_writes_wait_for_flush_even_when_cancelled(
         def flush(self):
             disk.free -= len(self.getvalue())
 
-    monkeypatch.setattr("app.core.upload_limits.shutil.disk_usage", usage)
+    monkeypatch.setattr("app.services.disk_space_service.shutil.disk_usage", usage)
 
     async def scenario():
         guard = DiskSpaceGuard()
@@ -132,9 +128,8 @@ def test_concurrent_writes_wait_for_flush_even_when_cancelled(
                     await first
             else:
                 await first
-            with pytest.raises(UploadLimitError) as error:
+            with pytest.raises(DiskSpaceError, match="Not enough free disk space"):
                 await second
-            assert error.value.status_code == 507
             assert first_file.getvalue() == b"12345678"
             assert second_file.getvalue() == b""
             assert disk.free == 102

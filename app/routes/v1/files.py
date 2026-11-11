@@ -11,8 +11,12 @@ from starlette.formparsers import MultiPartException
 from app.core.upload_limits import (
     LimitedMultipartParser,
     UploadLimitError,
-    is_disk_full,
     limited_stream,
+)
+from app.services.disk_space_service import (
+    DISK_FULL_MESSAGE,
+    DiskSpaceError,
+    is_disk_full,
 )
 from app.services.file_service import FileService, FileUploadError
 
@@ -22,6 +26,20 @@ logger = logging.getLogger(__name__)
 
 class UploadErrorResponse(BaseModel):
     detail: str
+
+
+def _upload_http_error(error: Exception) -> HTTPException | None:
+    """Map direct errors and FileService failures to the same HTTP responses."""
+    cause = error.__cause__ if isinstance(error, FileUploadError) else error
+    if isinstance(cause, UploadLimitError):
+        return HTTPException(status_code=cause.status_code, detail=str(cause))
+    if isinstance(cause, DiskSpaceError):
+        return HTTPException(status_code=507, detail=str(cause))
+    if isinstance(cause, OSError) and is_disk_full(cause):
+        return HTTPException(status_code=507, detail=DISK_FULL_MESSAGE)
+    if isinstance(error, FileUploadError):
+        return HTTPException(status_code=500, detail=str(error))
+    return None
 
 
 @files_router.post(
@@ -117,28 +135,15 @@ async def upload_file(request: Request):
                 "remaining_seconds": 0,
             },
         }
-    except UploadLimitError as error:
-        raise HTTPException(status_code=error.status_code, detail=str(error)) from error
+    except (UploadLimitError, DiskSpaceError, OSError, FileUploadError) as error:
+        if isinstance(error, FileUploadError):
+            logger.error("Upload request failed: %s", error)
+        http_error = _upload_http_error(error)
+        if http_error is not None:
+            raise http_error from error
+        raise
     except (MultiPartException, MultipartParseError) as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
-    except OSError as error:
-        if is_disk_full(error):
-            raise HTTPException(
-                status_code=507, detail="Not enough free disk space for this upload"
-            ) from error
-        raise
-    except FileUploadError as error:
-        logger.error("Upload request failed: %s", error)
-        cause = error.__cause__
-        if isinstance(cause, UploadLimitError):
-            raise HTTPException(
-                status_code=cause.status_code, detail=str(cause)
-            ) from error
-        if isinstance(cause, OSError) and is_disk_full(cause):
-            raise HTTPException(
-                status_code=507, detail="Not enough free disk space for this upload"
-            ) from error
-        raise HTTPException(status_code=500, detail=str(error)) from error
     finally:
         try:
             if parser is not None:

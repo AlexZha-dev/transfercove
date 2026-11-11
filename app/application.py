@@ -6,10 +6,10 @@ from fastapi import FastAPI, Request
 from app.core.migrations import cleanup_legacy_history_async
 from app.core.settings import Settings, is_packaged_build
 from app.core.settings import settings as default_settings
-from app.core.upload_limits import DiskSpaceGuard
 from app.routes.api_v1 import api_v1
 from app.routes.health import health_router
 from app.routes.static import register_static
+from app.services.disk_space_service import DiskSpaceGuard
 
 
 def create_app(

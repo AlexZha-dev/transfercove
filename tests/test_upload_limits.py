@@ -97,10 +97,10 @@ def test_busy_server_rejects_upload(limited_client):
 
 
 def test_no_free_space_returns_507(limited_client, monkeypatch):
-    from app.core import upload_limits
+    from app.services import disk_space_service
 
     monkeypatch.setattr(
-        upload_limits.shutil,
+        disk_space_service.shutil,
         "disk_usage",
         lambda _path: type("Usage", (), {"free": 0})(),
     )
@@ -110,18 +110,64 @@ def test_no_free_space_returns_507(limited_client, monkeypatch):
     assert not list(limited_client.app.state.settings.transmitter.storage_dir.iterdir())
 
 
-def test_disk_full_while_saving_returns_507(limited_client, monkeypatch):
-    from app.services.file_service import FileService
+@pytest.mark.parametrize("stage", ["temporary", "destination"])
+def test_disk_full_while_writing_returns_507(
+    limited_client, monkeypatch, opened_spools, stage
+):
+    from app.core.upload_limits import LimitedMultipartParser
+    from app.services.disk_space_service import DiskSpaceGuard
 
-    async def fail(_service, _file, **_kwargs):
-        raise OSError(errno.ENOSPC, "disk full")
+    destination = limited_client.app.state.settings.transmitter.storage_dir
+    original = DiskSpaceGuard._write
 
-    monkeypatch.setattr(FileService, "upload", fail)
-    assert (
-        limited_client.post("/v1/files", files={"file": ("one", b"1")}).status_code
-        == 507
-    )
+    def fail_write(guard, file, path, *args):
+        if (Path(path) == destination) == (stage == "destination"):
+            raise OSError(errno.ENOSPC, "disk full")
+        return original(guard, file, path, *args)
+
+    monkeypatch.setattr(LimitedMultipartParser, "spool_max_size", 8)
+    with monkeypatch.context() as failing_disk:
+        failing_disk.setattr(DiskSpaceGuard, "_write", fail_write)
+        response = limited_client.post(
+            "/v1/files", files={"file": ("one", b"content" * 10)}
+        )
+    assert response.status_code == 507
+    assert response.json()["detail"] == "Not enough free disk space for this upload"
+    assert opened_spools and all(file.closed for file in opened_spools)
+    assert not list(destination.iterdir())
     assert limited_client.app.state.active_uploads == 0
+    assert (
+        limited_client.post("/v1/files", files={"file": ("ok", b"ok")}).status_code
+        == 200
+    )
+
+
+@pytest.mark.parametrize("stage", ["temporary", "destination"])
+def test_unavailable_disk_usage_returns_507(
+    limited_client, monkeypatch, opened_spools, stage
+):
+    from app.services import disk_space_service
+
+    destination = limited_client.app.state.settings.transmitter.storage_dir
+    original = disk_space_service.shutil.disk_usage
+
+    def usage(path):
+        if (Path(path) == destination) == (stage == "destination"):
+            raise OSError(errno.EACCES, "cannot inspect disk")
+        return original(path)
+
+    with monkeypatch.context() as failing_disk:
+        failing_disk.setattr(disk_space_service.shutil, "disk_usage", usage)
+        response = limited_client.post("/v1/files", files={"file": ("one", b"1")})
+    assert response.status_code == 507
+    assert response.json()["detail"] == "Cannot check available disk space"
+    assert all(file.closed for file in opened_spools)
+    assert not list(destination.iterdir())
+    assert limited_client.app.state.active_uploads == 0
+    assert (
+        limited_client.post("/v1/files", files={"file": ("ok", b"ok")}).status_code
+        == 200
+    )
 
 
 def test_idle_timeout_without_content_length():
@@ -316,17 +362,17 @@ def test_stalled_request_closes_spooled_file_and_releases_slot(
 
 
 def test_destination_space_failure_cleans_temporary_upload(limited_client, monkeypatch):
-    from app.core import upload_limits
+    from app.services import disk_space_service
 
     destination = limited_client.app.state.settings.transmitter.storage_dir
-    original = upload_limits.shutil.disk_usage
+    original = disk_space_service.shutil.disk_usage
 
     def usage(path):
         if Path(path) == destination:
             return type("Usage", (), {"free": 0})()
         return original(path)
 
-    monkeypatch.setattr(upload_limits.shutil, "disk_usage", usage)
+    monkeypatch.setattr(disk_space_service.shutil, "disk_usage", usage)
     response = limited_client.post("/v1/files", files={"file": ("one.txt", b"content")})
     assert response.status_code == 507
     assert list(destination.iterdir()) == []
@@ -344,7 +390,7 @@ def test_spool_rollover_failure_returns_507_and_releases_slot(
     app.state.settings.upload_limits.reserve_mib = 1
     monkeypatch.setattr(LimitedMultipartParser, "spool_max_size", 8)
     monkeypatch.setattr(
-        "app.core.upload_limits.shutil.disk_usage",
+        "app.services.disk_space_service.shutil.disk_usage",
         lambda _path: type("Usage", (), {"free": 1024 * 1024 + 10})(),
     )
 

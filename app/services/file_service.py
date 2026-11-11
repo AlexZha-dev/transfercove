@@ -10,7 +10,7 @@ from uuid import UUID, uuid4
 
 from starlette.datastructures import UploadFile
 
-from app.core.upload_limits import DiskSpaceGuard
+from app.services.disk_space_service import DiskSpaceGuard
 
 logger = logging.getLogger(__name__)
 

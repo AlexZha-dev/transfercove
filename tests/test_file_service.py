@@ -10,7 +10,7 @@ from threading import Event
 import pytest
 from starlette.datastructures import Headers, UploadFile
 
-from app.core.upload_limits import DiskSpaceGuard
+from app.services.disk_space_service import DiskSpaceGuard
 from app.services.file_service import FileService, FileUploadError, safe_filename
 
 
