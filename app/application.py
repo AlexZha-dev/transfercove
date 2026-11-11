@@ -6,6 +6,7 @@ from fastapi import FastAPI, Request
 from app.core.migrations import cleanup_legacy_history_async
 from app.core.settings import Settings, is_packaged_build
 from app.core.settings import settings as default_settings
+from app.core.upload_limits import DiskSpaceGuard
 from app.routes.api_v1 import api_v1
 from app.routes.health import health_router
 from app.routes.static import register_static
@@ -36,6 +37,7 @@ def create_app(
 
     app.state.settings = config
     app.state.active_uploads = 0
+    app.state.disk_space_guard = DiskSpaceGuard()
 
     @app.middleware("http")
     async def request_timer(request: Request, call_next):

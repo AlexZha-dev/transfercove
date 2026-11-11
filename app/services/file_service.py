@@ -10,7 +10,7 @@ from uuid import UUID, uuid4
 
 from starlette.datastructures import UploadFile
 
-from app.core.upload_limits import check_space
+from app.core.upload_limits import DiskSpaceGuard
 
 logger = logging.getLogger(__name__)
 
@@ -65,14 +65,19 @@ class FileService:
             ) from error
 
     async def upload(
-        self, upload: UploadFile, *, reserve_bytes: int = 0
+        self,
+        upload: UploadFile,
+        *,
+        reserve_bytes: int = 0,
+        disk_guard: DiskSpaceGuard | None = None,
     ) -> UploadedFile:
         original_name = upload.filename or "unnamed"
         name = safe_filename(original_name)
         temporary_path = None
         size = 0
+        disk_guard = disk_guard or DiskSpaceGuard()
         try:
-            check_space(self.storage_dir, reserve_bytes)
+            await disk_guard.check(self.storage_dir, reserve_bytes)
             with tempfile.NamedTemporaryFile(
                 mode="wb",
                 prefix=".transfercove-",
@@ -82,8 +87,9 @@ class FileService:
             ) as output:
                 temporary_path = Path(output.name)
                 while chunk := await upload.read(1024 * 1024):
-                    check_space(self.storage_dir, reserve_bytes, len(chunk))
-                    output.write(chunk)
+                    await disk_guard.write(
+                        output, self.storage_dir, reserve_bytes, chunk
+                    )
                     size += len(chunk)
 
             # Both operations publish a complete file without replacing a target.

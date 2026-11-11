@@ -5,10 +5,12 @@ import ntpath
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from pathlib import Path
+from threading import Event
 
 import pytest
 from starlette.datastructures import Headers, UploadFile
 
+from app.core.upload_limits import DiskSpaceGuard
 from app.services.file_service import FileService, FileUploadError, safe_filename
 
 
@@ -57,6 +59,41 @@ def test_file_service_removes_partial_file_when_read_fails(tmp_path: Path) -> No
 
     assert list(storage_dir.iterdir()) == []
     assert upload.file.closed
+
+
+def test_cancellation_finishes_disk_write_before_removing_partial_file(
+    tmp_path: Path, monkeypatch
+) -> None:
+    entered, release = Event(), Event()
+    original = DiskSpaceGuard._write
+
+    def slow_write(guard, file, *args):
+        entered.set()
+        if not release.wait(5):
+            raise TimeoutError("Test did not release the pending disk write")
+        assert not file.closed
+        original(guard, file, *args)
+
+    monkeypatch.setattr(DiskSpaceGuard, "_write", slow_write)
+
+    async def scenario():
+        upload = make_upload(b"partial data")
+        task = asyncio.create_task(FileService(tmp_path).upload(upload))
+        try:
+            assert await asyncio.to_thread(entered.wait, 5)
+            task.cancel()
+            await asyncio.sleep(0.02)
+            assert not task.done()
+            release.set()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+            assert upload.file.closed
+            assert list(tmp_path.iterdir()) == []
+        finally:
+            release.set()
+            await asyncio.gather(task, return_exceptions=True)
+
+    run(scenario())
 
 
 def test_file_service_reports_unavailable_storage_directory(tmp_path: Path) -> None:

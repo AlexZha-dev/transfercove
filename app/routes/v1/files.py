@@ -74,6 +74,7 @@ async def upload_file(request: Request):
             ),
             max_bytes=max_bytes,
             reserve=limits.reserve_mib * 1024 * 1024,
+            disk_guard=request.app.state.disk_space_guard,
         )
         form = await parser.parse()
         file = form.get("file")
@@ -81,7 +82,9 @@ async def upload_file(request: Request):
             raise HTTPException(status_code=422, detail="Exactly one file is required")
         service = FileService(storage_dir=settings.transmitter.storage_dir)
         record = await service.upload(
-            file, reserve_bytes=limits.reserve_mib * 1024 * 1024
+            file,
+            reserve_bytes=limits.reserve_mib * 1024 * 1024,
+            disk_guard=request.app.state.disk_space_guard,
         )
         duration = max(perf_counter() - request.state.started_at, 0.000001)
         return {
