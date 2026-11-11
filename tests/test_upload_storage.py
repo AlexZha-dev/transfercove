@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 from starlette.datastructures import Headers
 
-from app.core.upload_limits import LimitedMultipartParser
+from app.routes.upload_parser import LimitedMultipartParser
 from app.services.disk_space_service import DiskSpaceError, DiskSpaceGuard
 
 

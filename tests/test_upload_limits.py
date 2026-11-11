@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.application import create_app
 from app.core.settings import Settings, TransmitterSettings, UploadLimits
-from app.core.upload_limits import UploadLimitError, limited_stream
+from app.routes.upload_parser import UploadLimitError, limited_stream
 
 
 @pytest.fixture
@@ -114,7 +114,7 @@ def test_no_free_space_returns_507(limited_client, monkeypatch):
 def test_disk_full_while_writing_returns_507(
     limited_client, monkeypatch, opened_spools, stage
 ):
-    from app.core.upload_limits import LimitedMultipartParser
+    from app.routes.upload_parser import LimitedMultipartParser
     from app.services.disk_space_service import DiskSpaceGuard
 
     destination = limited_client.app.state.settings.transmitter.storage_dir
@@ -258,7 +258,7 @@ def test_openapi_describes_file_input(limited_client):
 def test_incomplete_multipart_rejected_and_all_spools_closed(
     limited_client, monkeypatch, opened_spools, ending
 ):
-    from app.core.upload_limits import LimitedMultipartParser
+    from app.routes.upload_parser import LimitedMultipartParser
 
     monkeypatch.setattr(LimitedMultipartParser, "spool_max_size", 8)
     body = (
@@ -316,7 +316,7 @@ def test_stalled_request_closes_spooled_file_and_releases_slot(
 
     import httpx
 
-    from app.core.upload_limits import LimitedMultipartParser
+    from app.routes.upload_parser import LimitedMultipartParser
 
     async def scenario():
         monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
@@ -384,7 +384,7 @@ def test_spool_rollover_failure_returns_507_and_releases_slot(
 ):
     import httpx
 
-    from app.core.upload_limits import LimitedMultipartParser
+    from app.routes.upload_parser import LimitedMultipartParser
 
     app = limited_client.app
     app.state.settings.upload_limits.reserve_mib = 1
@@ -437,7 +437,7 @@ def test_large_multipart_headers_are_rejected(limited_client):
 def test_cancelled_request_releases_upload_slot(tmp_path, monkeypatch, opened_spools):
     import httpx
 
-    from app.core.upload_limits import LimitedMultipartParser
+    from app.routes.upload_parser import LimitedMultipartParser
 
     monkeypatch.setattr(LimitedMultipartParser, "spool_max_size", 8)
 

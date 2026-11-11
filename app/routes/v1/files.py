@@ -8,7 +8,7 @@ from python_multipart.exceptions import MultipartParseError
 from starlette.datastructures import UploadFile
 from starlette.formparsers import MultiPartException
 
-from app.core.upload_limits import (
+from app.routes.upload_parser import (
     LimitedMultipartParser,
     UploadLimitError,
     limited_stream,
