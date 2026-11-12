@@ -103,7 +103,7 @@ def app_theme() -> ft.Theme:
 
 
 def panel(
-    content: ft.Control, padding: int = 24, *, col: int | dict[str, int] = 12
+    content: ft.Control, padding: int = 24, *, col: ft.ResponsiveNumber = 12
 ) -> ft.Container:
     return ft.Container(
         content=content,

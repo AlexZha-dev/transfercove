@@ -56,7 +56,14 @@ def _hostname_ipv4_addresses() -> list[str]:
     except OSError:
         return []
 
-    return [info[4][0] for info in infos if info[4]]
+    addresses: list[str] = []
+    for info in infos:
+        sockaddr = info[4]
+        if sockaddr:
+            address = sockaddr[0]
+            if isinstance(address, str):
+                addresses.append(address)
+    return addresses
 
 
 def get_lan_ipv4() -> str | None:

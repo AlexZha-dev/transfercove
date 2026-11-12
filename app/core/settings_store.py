@@ -2,6 +2,9 @@ import datetime
 import os
 import shutil
 from pathlib import Path
+from typing import cast
+
+from sqlalchemy.sql.schema import Table
 
 from app.core.db import Database
 from app.core.settings import Settings
@@ -57,7 +60,7 @@ class SettingsStore:
         self.service = SettingsService(self.database)
 
     async def load(self, fallback: Settings) -> Settings:
-        await self.database.create_table(UpdateCheckRecord.__table__)
+        await self.database.create_table(cast(Table, UpdateCheckRecord.__table__))
         return await self.service.initialize(fallback)
 
     async def save(self, settings: Settings) -> Settings:

@@ -4,13 +4,19 @@ import shutil
 from collections.abc import Callable
 from pathlib import Path
 from threading import Lock
-from typing import BinaryIO, TypeVar
+from typing import Protocol, TypeVar
 
 from anyio import CancelScope
 
 T = TypeVar("T")
 
 DISK_FULL_MESSAGE = "Not enough free disk space for this upload"
+
+
+class WritableBinaryFile(Protocol):
+    def write(self, data: bytes, /) -> int: ...
+
+    def flush(self) -> None: ...
 
 
 class DiskSpaceError(RuntimeError):
@@ -22,10 +28,9 @@ async def run_disk_io(operation: Callable[..., T], *args) -> T:
     cancellation = None
     with CancelScope(shield=True):
         task = asyncio.create_task(asyncio.to_thread(operation, *args))
-        while True:
+        while not task.done():
             try:
-                result = await asyncio.shield(task)
-                break
+                await asyncio.shield(task)
             except asyncio.CancelledError as error:
                 if task.cancelled():
                     raise
@@ -36,7 +41,7 @@ async def run_disk_io(operation: Callable[..., T], *args) -> T:
                 raise
     if cancellation is not None:
         raise cancellation
-    return result
+    return task.result()
 
 
 def check_space(path: Path, reserve: int, incoming: int = 0) -> None:
@@ -65,7 +70,7 @@ class DiskSpaceGuard:
 
     async def write(
         self,
-        file: BinaryIO,
+        file: WritableBinaryFile,
         path: Path,
         reserve: int,
         data: bytes,
@@ -81,7 +86,14 @@ class DiskSpaceGuard:
             len(data) if incoming is None else incoming,
         )
 
-    def _write(self, file, path, reserve, data, incoming) -> None:
+    def _write(
+        self,
+        file: WritableBinaryFile,
+        path: Path,
+        reserve: int,
+        data: bytes,
+        incoming: int,
+    ) -> None:
         with self._lock:
             check_space(path, reserve, incoming)
             file.write(data)
