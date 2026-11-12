@@ -9,7 +9,9 @@ import pytest
 from app.core.localization import (
     Localizer,
     load_catalogs,
+    render_web_fallback,
     resolve_locale,
+    validate_catalog_files,
     validate_catalogs,
 )
 
@@ -34,6 +36,18 @@ def test_catalog_discovery_ignores_invalid_files(tmp_path):
     )
     (tmp_path / "ru.json").write_text("invalid JSON", encoding="utf-8")
     assert list(load_catalogs(tmp_path)) == ["en"]
+    _, errors = validate_catalog_files(tmp_path)
+    assert "Invalid catalog: ru.json" in errors
+
+
+def test_supported_catalogs_and_generated_english_fallback():
+    catalogs, errors = validate_catalog_files()
+    assert errors == []
+    assert {"en", "ru", "es", "pt", "de", "fr", "uk"} <= catalogs.keys()
+    fallback = Path("app/static/locales/en.js").read_text(encoding="utf-8")
+    assert fallback == render_web_fallback(catalogs)
+    catalogs["en"]["web"]["language"] = "Changed"
+    assert fallback != render_web_fallback(catalogs)
 
 
 def test_upload_catalogs_have_matching_keys_and_parameters():

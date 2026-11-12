@@ -1,5 +1,6 @@
 """Catalog discovery and locale-aware messages for the desktop and web UI."""
 
+import argparse
 import json
 import logging
 import re
@@ -10,6 +11,7 @@ from babel.numbers import format_decimal
 
 logger = logging.getLogger(__name__)
 CATALOG_DIR = Path(__file__).resolve().parents[1] / "locales"
+WEB_FALLBACK = Path(__file__).resolve().parents[1] / "static" / "locales" / "en.js"
 
 
 def load_catalogs(directory: Path = CATALOG_DIR) -> dict[str, dict]:
@@ -42,6 +44,8 @@ def validate_catalogs(catalogs: dict[str, dict]) -> list[str]:
         return ["Missing English catalog"]
     if not english.get("desktop"):
         errors.append("en.desktop: catalog must not be empty")
+    if not english.get("web"):
+        errors.append("en.web: catalog must not be empty")
 
     def check(reference, actual, path, language):
         if isinstance(reference, dict):
@@ -91,6 +95,29 @@ def validate_catalogs(catalogs: dict[str, dict]) -> list[str]:
     return errors
 
 
+def render_web_fallback(catalogs: dict[str, dict]) -> str:
+    """Generate the offline English catalog from the canonical JSON file."""
+    messages = json.dumps(catalogs["en"]["web"], ensure_ascii=False, indent=2)
+    return (
+        "// Generated from app/locales/en.json; do not edit by hand.\n"
+        "window.UPLOAD_LOCALES = window.UPLOAD_LOCALES || {};\n\n"
+        f"window.UPLOAD_LOCALES.en = {messages};\n"
+    )
+
+
+def validate_catalog_files(
+    directory: Path = CATALOG_DIR,
+) -> tuple[dict[str, dict], list[str]]:
+    catalogs = load_catalogs(directory)
+    errors = validate_catalogs(catalogs)
+    errors.extend(
+        f"Invalid catalog: {path.name}"
+        for path in directory.glob("*.json")
+        if path.stem.lower() not in catalogs
+    )
+    return catalogs, errors
+
+
 def resolve_locale(requested: str | None, catalogs: dict[str, dict]) -> str:
     candidate = (requested or "en").replace("_", "-").lower()
     while candidate:
@@ -122,13 +149,25 @@ class Localizer:
 
 
 if __name__ == "__main__":
-    catalogs = load_catalogs()
-    errors = validate_catalogs(catalogs)
-    errors.extend(
-        f"Invalid catalog: {path.name}"
-        for path in CATALOG_DIR.glob("*.json")
-        if path.stem.lower() not in catalogs
+    parser = argparse.ArgumentParser(description="Validate application locale catalogs")
+    parser.add_argument(
+        "--write-web-fallback",
+        action="store_true",
+        help="regenerate the English web fallback",
     )
+    args = parser.parse_args()
+    catalogs, errors = validate_catalog_files()
+    if not errors:
+        expected = render_web_fallback(catalogs)
+        if args.write_web_fallback:
+            WEB_FALLBACK.write_text(expected, encoding="utf-8", newline="\n")
+        elif (
+            not WEB_FALLBACK.is_file()
+            or WEB_FALLBACK.read_text(encoding="utf-8") != expected
+        ):
+            errors.append(
+                "English web fallback is missing or outdated; run with --write-web-fallback"
+            )
     if errors:
         print("\n".join(errors))
         raise SystemExit(1)

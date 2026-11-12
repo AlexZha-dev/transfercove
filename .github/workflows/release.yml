@@ -38,6 +38,8 @@ jobs:
         run: poetry install --with dev
       - name: Validate project and lock file
         run: poetry check --lock
+      - name: Validate locale catalogs and fallback
+        run: poetry run python -m app.core.localization
       - name: Lint Python sources
         run: poetry run ruff check app tests tools main.py alembic
       - name: Check Python formatting
