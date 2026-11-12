@@ -23,7 +23,7 @@ def load_catalogs(directory: Path = CATALOG_DIR) -> dict[str, dict]:
             if not isinstance(catalog["name"], str):
                 raise ValueError("catalog name must be a string")
             catalogs[locale.lower()] = catalog
-        except (OSError, ValueError, KeyError, TypeError):
+        except OSError, ValueError, KeyError, TypeError:
             logger.exception("Invalid locale catalog: %s", path)
     return catalogs
 
@@ -53,6 +53,6 @@ class Localizer:
     def number(self, value: int | float) -> str:
         try:
             locale = Locale.parse(self.language, sep="-")
-        except (UnknownLocaleError, ValueError):
+        except UnknownLocaleError, ValueError:
             locale = Locale.parse("en")
         return format_decimal(value, locale=locale)

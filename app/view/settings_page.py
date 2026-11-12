@@ -4,6 +4,7 @@ import flet as ft
 from pydantic import ValidationError
 
 from app.controller.controller import AppController
+from app.core.localization import load_catalogs, resolve_locale
 from app.core.network import get_lan_ipv4
 from app.core.security import SECURITY_NOTICE_DETAILS, SECURITY_NOTICE_TITLE
 from app.core.settings import (
@@ -132,12 +133,13 @@ class SettingsPage:
         self.idle_timeout = text_field(
             "Upload inactivity timeout (seconds)", str(limits.idle_timeout_seconds)
         )
+        catalogs = load_catalogs()
         self.language = ft.Dropdown(
             label="Language",
-            value=settings.desktop.language,
+            value=resolve_locale(settings.desktop.language, catalogs),
             options=[
-                ft.DropdownOption(key="en", text="English"),
-                ft.DropdownOption(key="ru", text="Русский"),
+                ft.DropdownOption(key=locale, text=catalog["name"])
+                for locale, catalog in catalogs.items()
             ],
             text_size=13,
             color=COLORS["text"],

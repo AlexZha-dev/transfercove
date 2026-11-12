@@ -77,14 +77,18 @@ const state = {
 
 function getMessage(key) {
   const lookup = (catalog) => key.split(".").reduce((value, part) => value?.[part], catalog);
-  return lookup(messages) ?? lookup(catalogs.en.web);
+  return lookup(messages) ?? lookup(catalogs.en.web) ??
+    (key.startsWith("fileCount.") ? catalogs.en.web.fileCount?.other : undefined);
 }
 
 function t(key, values = {}) {
   const message = getMessage(key);
   if (typeof message !== "string") return "";
 
-  return message.replace(/\{\{(\w+)\}\}/g, (_, name) => values[name] ?? "");
+  return message.replace(/\{\{(\w+)\}\}/g, (_, name) => {
+    const value = values[name];
+    return typeof value === "number" ? new Intl.NumberFormat(activeLanguage).format(value) : value ?? "";
+  });
 }
 
 function applyTranslations() {
