@@ -128,10 +128,15 @@ def test_invalid_settings_do_not_apply_language(monkeypatch):
     ("field", "value", "expected"),
     [
         ("port", "65536", "65535"),
+        ("port", "0", "1"),
         ("max_file_mib", "0", "1"),
+        ("max_file_mib", "1048577", "1048576"),
         ("max_concurrent", "101", "100"),
+        ("max_concurrent", "0", "1"),
         ("reserve_mib", "-1", "0"),
+        ("reserve_mib", "1048577", "1048576"),
         ("idle_timeout", "86401", "86400"),
+        ("idle_timeout", "0", "1"),
     ],
 )
 def test_invalid_numeric_ranges_identify_the_field(monkeypatch, field, value, expected):
@@ -143,6 +148,20 @@ def test_invalid_numeric_ranges_identify_the_field(monkeypatch, field, value, ex
     asyncio.run(settings.save(None))
     assert control.label in settings.message.value
     assert expected in settings.message.value
+    controller.save_settings.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    "field", ["port", "max_file_mib", "max_concurrent", "reserve_mib", "idle_timeout"]
+)
+def test_invalid_numeric_inputs_identify_the_field(monkeypatch, field):
+    view, controller = make_view(monkeypatch)
+    view.show_settings()
+    settings = view.current_view
+    control = getattr(settings, field)
+    control.value = "invalid"
+    asyncio.run(settings.save(None))
+    assert f"{control.label}: Enter a whole number." in settings.message.value
     controller.save_settings.assert_not_awaited()
 
 
