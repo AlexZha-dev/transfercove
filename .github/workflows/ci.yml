@@ -27,11 +27,11 @@ jobs:
         os: [ubuntu-24.04, windows-2022]
     steps:
       - name: Check out the pull request merge commit or branch
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Set up Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.14'
       - name: Install Poetry
@@ -56,7 +56,7 @@ jobs:
         run: poetry run pytest --junitxml=test-results/pytest.xml
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-results-${{ matrix.os }}-${{ github.sha }}
           path: test-results/pytest.xml
@@ -88,11 +88,11 @@ jobs:
         shell: pwsh
     steps:
       - name: Check out source
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Set up Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.14'
       - name: Install Poetry
@@ -131,7 +131,7 @@ jobs:
           ./.github/scripts/smoke-installer.ps1 -InstallerPath $env:INSTALLER_PATH -InstallMode CurrentUser -TestUpgradePreservesData -LogDirectory test-results/installer/current-user
           ./.github/scripts/smoke-installer.ps1 -InstallerPath $env:INSTALLER_PATH -InstallMode AllUsers -LogDirectory test-results/installer/all-users
       - name: Upload verified installer
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: TransferCove-test-${{ github.sha }}
           path: ${{ steps.installer.outputs.installer-path }}
@@ -140,7 +140,7 @@ jobs:
           retention-days: 14
       - name: Upload installer diagnostics
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: installer-logs-${{ github.sha }}
           path: test-results/installer/
