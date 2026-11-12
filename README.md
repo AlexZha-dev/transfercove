@@ -12,7 +12,7 @@ The computer receives files. A phone, tablet, or another computer sends them fro
 
 <br>
 
-![Version](https://img.shields.io/badge/version-0.2.3-1f8f55?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.3.2-1f8f55?style=flat-square)
 ![Python](https://img.shields.io/badge/python-3.14%2B-3776AB?style=flat-square&logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-111827?style=flat-square)
 
@@ -54,10 +54,6 @@ The desktop app manages the receiver. Any modern browser can act as the sender.
     <a href="docs/images/upload.png"><img src="docs/images/upload.png" width="900" alt="TransferCove browser upload page with a file queue"></a><br>
     <strong>Upload page</strong><br><sub>Send from any browser</sub>
   </p>
-  <p>
-    <a href="docs/images/upload-mobile.png"><img src="docs/images/upload-mobile.png" width="520" alt="TransferCove upload page on a mobile screen"></a><br>
-    <strong>Mobile layout</strong><br><sub>Works on smaller screens</sub>
-  </p>
 </div>
 
 <p align="center"><sub>Click any screenshot to open the full-size image. Screenshots were captured in an isolated demo environment with a sample upload queue.</sub></p>
@@ -75,7 +71,7 @@ poetry run python main.py
 
 Open **Dashboard → Start server**, then choose **Open upload page**. By default, the upload page is available on the receiving computer at `http://127.0.0.1:8000/`.
 
-Desktop preferences are stored between launches. When the server is started from the desktop app, database migrations are applied automatically.
+Desktop preferences are stored between launches in a separate settings database. Receiving files does not require a history database. On startup, either server attempts to remove old file-history records from an existing local SQLite database; a cleanup failure is logged and does not prevent uploads. New installations do not create `files.db`.
 
 <a id="connection"></a>
 
@@ -121,6 +117,7 @@ Important defaults:
 UVICORN__HOST=127.0.0.1
 UVICORN__PORT=8000
 TRANSMITTER__STORAGE_DIR=.data/files
+# Legacy history cleanup only; not required for uploads
 TRANSMITTER__DATABASE_URL=sqlite+aiosqlite:///./.data/files.db
 DESKTOP__AUTO_START=False
 DESKTOP__OPEN_BROWSER=True
@@ -139,7 +136,6 @@ The desktop app uses `.env` as its initial configuration, then loads saved prefe
 ### Run the web server without the desktop window
 
 ```bash
-poetry run alembic upgrade head
 poetry run python -m app.server_start_up
 ```
 
@@ -152,7 +148,26 @@ Once running, these endpoints are available:
 | `/docs` | Interactive FastAPI documentation |
 | `POST /v1/files` | Upload one file using the multipart `file` field |
 
-Uploaded files are stored under UUID-based names while preserving their original extension. Original names and metadata are kept in the database. The list, download, and delete API endpoints are currently placeholders.
+Upload limits are configured in desktop settings and apply to each receiving server: by default one file may be up to 1024 MiB, two uploads may run simultaneously, 512 MiB of free disk space is reserved, and an upload times out after 60 seconds without incoming data. Each request accepts one file; the browser sends multiple selected files sequentially. A multipart request also has 64 KiB of overhead available for headers and boundaries, and part headers are separately limited by the multipart parser.
+
+Free-space checks cover both the system temporary directory and the destination. Checks account for the whole buffered file when it first spills from memory to disk. Each server instance serializes its disk checks, writes, and buffer flushes so its uploads do not spend the same available space concurrently. This is a best-effort reserve: other processes and server instances can still consume disk space. A file is published only after the complete multipart message is received. Rejected, timed-out, and cancelled requests close their temporary files and release their upload slot; cancellation waits for any in-flight disk write to finish before cleanup.
+
+For the standalone server, use the `UPLOAD_LIMITS__MAX_FILE_MIB`, `UPLOAD_LIMITS__MAX_CONCURRENT`, `UPLOAD_LIMITS__RESERVE_MIB`, and `UPLOAD_LIMITS__IDLE_TIMEOUT_SECONDS` variables shown in `.env.example`. Desktop settings are saved separately and take precedence after initial setup.
+
+Upload failures return JSON with a string `detail` field, and the browser shows a corresponding error:
+
+| Status | Meaning |
+| :--- | :--- |
+| `400` | Malformed or incomplete multipart request, or too many parts |
+| `408` | No data arrived within the inactivity timeout |
+| `413` | File or request exceeds the size limit |
+| `422` | Expected exactly one multipart file field named `file` |
+| `429` | All simultaneous upload slots are occupied; retry later |
+| `507` | Insufficient disk space, or available space could not be checked |
+
+The timeout measures inactivity, not total upload duration. A slow client that keeps sending data can continue occupying a slot; the receiver can stop the server manually. Transfer-rate throttling, per-client request-rate limits, and a total upload deadline are deferred follow-ups to issue #7 for this personal, manually enabled receiver. They are not enforced by the current limits.
+
+New uploads are saved with their original file names where possible. Unsafe characters are replaced, and duplicate names receive a numbered suffix without replacing existing files. Upload history is not stored in the database. Automatic cleanup deletes old file-history records when the legacy SQLite database is accessible; if cleanup fails, it is retried on the next start. Previously uploaded UUID-named files remain on disk, but their original names cannot be recovered from deleted records. Non-SQLite legacy databases require a manual Alembic migration. On Unix, the destination filesystem must support hard links so that completed uploads can be published without replacing existing files. The list, download, and delete API endpoints are currently placeholders.
 
 ### Run the test suite
 
@@ -163,6 +178,14 @@ poetry run pytest
 ```
 
 The tests create temporary databases and storage directories, so they do not modify `.data/` or the local settings database.
+
+### Automated pull request checks and development builds
+
+GitHub Actions runs dependency review, linting, formatting checks, and the full test suite on Windows and Linux only for pull requests. The tests include launching the standalone upload server, checking its HTTP endpoints, and verifying an uploaded file. The Windows build constrains Flet's packaged Python dependencies to `poetry.lock` and verifies the generated bundle against the lock file.
+
+After the checks pass, CI builds the Windows app and installer, silently installs it in temporary directories as both the current user and all users, and verifies desktop initialization and clean uninstallation. Pull requests also receive dependency review, and Dependabot proposes weekly dependency and workflow updates. Verified installers are available in the workflow run's **Artifacts** section as `TransferCove-test-<commit-sha>`. See [the CI guide](docs/ci.md) for local commands, diagnostics, and required PR checks.
+
+Stable Windows releases use the separate tag-triggered workflow. Publishing a `vX.Y.Z` tag builds and smoke-tests the installer, checks that the tag and application version match `pyproject.toml`, and publishes the installer with a SHA-256 checksum and generated release notes. The packaged Windows app checks GitHub Releases in the background at most once every 24 hours; **Settings → About this app** also has a manual check. Updates are downloaded only from stable releases, verified against the published checksum, and installed only after confirmation. Network failures do not prevent normal app use. See the [release and update guide](docs/ci.md#stable-releases-and-desktop-updates).
 
 ### Project structure
 
@@ -199,21 +222,24 @@ poetry run python tools/export_brand.py
 Build the Windows desktop package on Windows:
 
 ```bash
-poetry run flet build windows --yes --build-version 0.2.3
+poetry run flet build windows --yes --build-version 0.3.2
 ```
 
 Flet reads the application icon from `assets/icon.png`; the build entry point, artifact name, and local-data exclusions are configured in `pyproject.toml`. A Windows build also requires Flutter and the C++ desktop tools from Visual Studio. See the [Flet Windows publishing guide](https://flet.dev/docs/publish/windows/) for the platform prerequisites.
 
 ### Windows installer and license notices
 
-The repository includes an Inno Setup script at [`installer/windows/TransferCove.iss`](installer/windows/TransferCove.iss). After building the Flet application, open the script with Inno Setup Compiler to create `dist/installer/TransferCove-Setup-0.2.3.exe`:
+The repository includes an Inno Setup script at [`installer/windows/TransferCove.iss`](installer/windows/TransferCove.iss). The build script reads the version from `pyproject.toml` and passes it to Inno Setup. After building the Flet application, run these commands from PowerShell to create the installer under `dist/installer/`:
 
 ```text
-poetry run flet build windows --yes --build-version 0.2.3
-iscc installer/windows/TransferCove.iss
+poetry install --with dev,build
+poetry run flet build windows --yes --python-version 3.14 --build-version (poetry version --short)
+./.github/scripts/build-installer.ps1
 ```
 
-The installer displays the MIT license, installs [`LICENSE`](LICENSE) and [`THIRD-PARTY-NOTICES.txt`](THIRD-PARTY-NOTICES.txt), and preserves the dependency license metadata shipped in the Flet bundle. The generated installer should be digitally signed before public distribution; signing is intentionally kept outside the repository so certificates and passwords are never committed. If dependency versions change during a rebuild, update `THIRD-PARTY-NOTICES.txt` from the final bundle before publishing the installer.
+Opening the Inno Setup script directly also works: it reads the version from the built executable when no version override is supplied.
+
+The installer displays the MIT license, installs [`LICENSE`](LICENSE) and [`THIRD-PARTY-NOTICES.txt`](THIRD-PARTY-NOTICES.txt), and preserves the dependency license metadata shipped in the Flet bundle. Release installers are currently unsigned; signing remains outside the repository so certificates and passwords are never committed. If dependency versions change during a rebuild, update `THIRD-PARTY-NOTICES.txt` from the final bundle before publishing the installer.
 
 ### Current project boundaries
 

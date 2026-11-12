@@ -1,14 +1,14 @@
+import asyncio
+import datetime
+import logging
 import webbrowser
 from typing import Protocol
 
 import flet as ft
 
 from app.controller.controller import AppController
-from app.core.security import (
-    SECURITY_NOTICE_DETAILS,
-    SECURITY_NOTICE_PREFERENCE_KEY,
-    SECURITY_NOTICE_TITLE,
-)
+from app.core.security import SECURITY_NOTICE_PREFERENCE_KEY
+from app.core.settings import is_windows_packaged_build
 from app.core.theme import (
     ASSETS_DIR,
     COLORS,
@@ -18,8 +18,20 @@ from app.core.theme import (
     eyebrow,
 )
 from app.server.manager import ServerState
+from app.services.update_service import (
+    UpdateOperation,
+    UpdateService,
+    UpdateServiceError,
+    UpdateViewState,
+    VerifiedInstaller,
+    should_check_for_updates,
+)
+from app.services.windows_update_installer import InstallerFileError, verify_and_launch
 from app.view.home_page import HomePage
+from app.view.localized import LocalizedView
 from app.view.settings_page import SettingsPage
+
+logger = logging.getLogger(__name__)
 
 
 class View(Protocol):
@@ -31,7 +43,7 @@ class View(Protocol):
     def dispose(self) -> None: ...
 
 
-class MainPage:
+class MainPage(LocalizedView):
     def __init__(self, page: ft.Page) -> None:
         self.page = page
         self.controller = AppController()
@@ -41,7 +53,17 @@ class MainPage:
         self.current_view: View | None = None
         self.active_route = "home"
         self._start_after_security_acknowledgement = False
-        self.route_title = ft.Text("Dashboard", size=13, color=COLORS["text"])
+        self.update_state = UpdateViewState(supported=is_windows_packaged_build())
+        self.update_service: UpdateService | None = None
+        self._update_check_task: asyncio.Task | None = None
+        self._closing = False
+        self._update_confirmation: tuple[object, VerifiedInstaller] | None = None
+        self._build_chrome()
+
+    def _build_chrome(self) -> None:
+        self.route_title = ft.Text(
+            self.tr("dashboard_67b696"), size=13, color=COLORS["text"]
+        )
         self.connection_text = ft.Text(size=11, weight=ft.FontWeight.W_600)
         self.connection_dot = ft.Container(width=6, height=6, border_radius=3)
         self.nav_labels: list[ft.Control] = []
@@ -50,12 +72,12 @@ class MainPage:
         self.mobile_nav_buttons: list[ft.IconButton] = [
             ft.IconButton(
                 icon=ft.Icons.GRID_VIEW_ROUNDED,
-                tooltip="Dashboard",
+                tooltip=self.tr("dashboard_67b696"),
                 on_click=self.show_home,
             ),
             ft.IconButton(
                 icon=ft.Icons.TUNE_ROUNDED,
-                tooltip="Settings",
+                tooltip=self.tr("settings_74a883"),
                 on_click=self.show_settings,
             ),
         ]
@@ -68,7 +90,7 @@ class MainPage:
         )
         self.breadcrumb = ft.Row(
             controls=[
-                ft.Text("Workspace", size=12, color=COLORS["muted"]),
+                ft.Text(self.tr("workspace_87bb59"), size=12, color=COLORS["muted"]),
                 ft.Icon(ft.Icons.CHEVRON_RIGHT, size=15, color=COLORS["border_strong"]),
                 self.route_title,
             ],
@@ -109,24 +131,45 @@ class MainPage:
         self.page.window.min_height = 600
         self.page.window.icon = str(ASSETS_DIR / "icon.ico")
         self.page.on_resize = self.resize
+        self.page.window.on_event = self.on_window_event
         self.page.services.append(self.file_picker)
         self.page.services.append(self.security_preferences)
 
         await self.controller.initialize()
+        self.set_language(self.controller.settings.desktop.language)
+        self._build_chrome()
+        if self.update_state.supported:
+            try:
+                self.update_service = UpdateService(
+                    self.controller.settings.app.version
+                )
+            except ValueError:
+                logger.exception("The installed application version is invalid")
+                self._set_update_status(
+                    "update_checks_are_unavailable_for_this_ver_f77165"
+                )
+                self.update_state.is_error = True
         self.controller.subscribe(self.refresh_current_view)
-        self.page.add(
-            ft.Row(
-                controls=[
-                    self.sidebar,
-                    ft.Column([self.topbar, self.content], spacing=0, expand=True),
-                ],
-                expand=True,
-                spacing=0,
-                vertical_alignment=ft.CrossAxisAlignment.STRETCH,
-            )
+        self.main_column = ft.Column(
+            [self.topbar, self.content], spacing=0, expand=True
         )
+        self.layout = ft.Row(
+            controls=[
+                self.sidebar,
+                self.main_column,
+            ],
+            expand=True,
+            spacing=0,
+            vertical_alignment=ft.CrossAxisAlignment.STRETCH,
+        )
+        self.page.add(self.layout)
         self.show_home()
         self.resize()
+
+        if self.update_state.supported and self.update_service is not None:
+            self._update_check_task = asyncio.create_task(
+                self.check_for_updates(manual=False)
+            )
 
         if await self.security_notice_was_acknowledged():
             await self.start_server_automatically()
@@ -157,18 +200,22 @@ class MainPage:
                 color=COLORS["warning"],
                 size=30,
             ),
-            title=ft.Text(SECURITY_NOTICE_TITLE),
+            title=ft.Text(self.tr("security_notice_772833")),
             content=ft.Container(
                 content=ft.Column(
                     controls=[
                         ft.Text(
-                            SECURITY_NOTICE_DETAILS,
+                            self.tr(
+                                "transfercove_does_not_encrypt_network_traf_a8452d"
+                            ),
                             size=13,
                             color=COLORS["muted_bright"],
                         ),
                         ft.Container(
                             content=ft.Text(
-                                "Continue only if you understand these limitations.",
+                                self.tr(
+                                    "continue_only_if_you_understand_these_limi_ef104f"
+                                ),
                                 size=12,
                                 color=COLORS["warning"],
                                 weight=ft.FontWeight.W_600,
@@ -186,14 +233,14 @@ class MainPage:
             ),
             actions=[
                 ft.Button(
-                    "I understand",
+                    self.tr("i_understand_860296"),
                     icon=ft.Icons.CHECK_ROUNDED,
                     style=button_style(primary=True),
                     on_click=self.acknowledge_security_notice,
                 )
             ],
             actions_alignment=ft.MainAxisAlignment.END,
-            semantics_label="TransferCove security notice",
+            semantics_label=self.tr("transfercove_security_notice_c3bec2"),
         )
         self.page.show_dialog(dialog)
 
@@ -201,9 +248,7 @@ class MainPage:
         """Persist acknowledgement and continue any configured automatic start."""
 
         try:
-            await self.security_preferences.set(
-                SECURITY_NOTICE_PREFERENCE_KEY, True
-            )
+            await self.security_preferences.set(SECURITY_NOTICE_PREFERENCE_KEY, True)
         except ft.FletUnsupportedPlatformException:
             # The dialog is still informative on a platform without persistence.
             pass
@@ -226,7 +271,10 @@ class MainPage:
         self.brand_text = ft.Column(
             controls=[
                 ft.Text(
-                    "Transfer", size=20, weight=ft.FontWeight.W_700, color=COLORS["text"]
+                    "Transfer",
+                    size=20,
+                    weight=ft.FontWeight.W_700,
+                    color=COLORS["text"],
                 ),
                 ft.Text(
                     "COVE",
@@ -237,10 +285,20 @@ class MainPage:
             ],
             spacing=0,
         )
-        self.sidebar_label = eyebrow("Workspace")
+        self.sidebar_label = eyebrow(self.tr("workspace_87bb59"))
         for route, label, icon, callback in [
-            ("home", "Dashboard", ft.Icons.GRID_VIEW_ROUNDED, self.show_home),
-            ("settings", "Settings", ft.Icons.TUNE_ROUNDED, self.show_settings),
+            (
+                "home",
+                self.tr("dashboard_67b696"),
+                ft.Icons.GRID_VIEW_ROUNDED,
+                self.show_home,
+            ),
+            (
+                "settings",
+                self.tr("settings_74a883"),
+                ft.Icons.TUNE_ROUNDED,
+                self.show_settings,
+            ),
         ]:
             text = ft.Text(label, size=13, weight=ft.FontWeight.W_600, expand=True)
             self.nav_labels.append(text)
@@ -259,7 +317,7 @@ class MainPage:
                                 ft.Icons.WIFI_ROUNDED, size=15, color=COLORS["primary"]
                             ),
                             ft.Text(
-                                "Made for your network",
+                                self.tr("made_for_your_network_9330e5"),
                                 size=11,
                                 color=COLORS["muted_bright"],
                             ),
@@ -267,7 +325,9 @@ class MainPage:
                         spacing=8,
                     ),
                     ft.Text(
-                        "Your devices. One connection.", size=11, color=COLORS["muted"]
+                        self.tr("your_devices_one_connection_616278"),
+                        size=11,
+                        color=COLORS["muted"],
                     ),
                 ],
                 spacing=8,
@@ -295,7 +355,9 @@ class MainPage:
 
     def update_navigation(self) -> None:
         self.route_title.value = (
-            "Settings" if self.active_route == "settings" else "Dashboard"
+            self.tr("settings_74a883")
+            if self.active_route == "settings"
+            else self.tr("dashboard_67b696")
         )
         for route, button in self.nav_buttons.items():
             selected = route == self.active_route
@@ -323,11 +385,11 @@ class MainPage:
             ServerState.ERROR: COLORS["danger"],
         }.get(state, COLORS["muted"])
         self.connection_text.value = {
-            ServerState.RUNNING: "Server online",
-            ServerState.STARTING: "Starting server",
-            ServerState.STOPPING: "Stopping server",
-            ServerState.ERROR: "Server error",
-        }.get(state, "Server offline")
+            ServerState.RUNNING: self.tr("server_online_ae7534"),
+            ServerState.STARTING: self.tr("starting_server_8a0f9d"),
+            ServerState.STOPPING: self.tr("stopping_server_ae3b82"),
+            ServerState.ERROR: self.tr("server_error_dfe0c2"),
+        }.get(state, self.tr("server_offline_87ba7b"))
         self.connection_text.color = color
         self.connection_dot.bgcolor = color
         if self.current_view is not None:
@@ -344,9 +406,29 @@ class MainPage:
         self.dispose_current_view()
         self.active_route = "settings"
         self.current_view = SettingsPage(
-            self.controller, self.show_home, self.page, self.file_picker
+            self.controller,
+            self.show_home,
+            self.page,
+            self.file_picker,
+            self.update_state,
+            self.check_for_updates,
+            self.update_action,
+            self.language_saved,
         )
         self.mount_view()
+
+    def language_saved(self, message: str, color: str) -> None:
+        """Rebuild translated controls after the settings event has finished."""
+        self.set_language(self.controller.settings.desktop.language)
+        self._build_chrome()
+        self.layout.controls[0] = self.sidebar
+        self.main_column.controls[0] = self.topbar
+        self.show_settings()
+        assert isinstance(self.current_view, SettingsPage)
+        self.current_view.message.value = message
+        self.current_view.message.color = color
+        self.current_view.message.visible = True
+        self.resize()
 
     def mount_view(self) -> None:
         current_view = self.current_view
@@ -389,13 +471,242 @@ class MainPage:
         if self.current_view is not None:
             self.current_view.dispose()
 
+    def _notify_updates(self) -> None:
+        if not self._closing:
+            self.controller.notify()
+
+    def _set_update_status(self, key: str, **values: object) -> None:
+        self.update_state.status_key = key
+        self.update_state.status_values = values
+
+    def _begin_update_operation(self, operation: UpdateOperation) -> bool:
+        # All event handlers run on the UI loop. Claim the operation before any await.
+        if (
+            self._closing
+            or not self.update_state.supported
+            or self.update_service is None
+            or self.update_state.busy
+        ):
+            return False
+        self.update_state.operation = operation
+        return True
+
+    def _finish_update_operation(self) -> None:
+        if not self._closing:
+            self.update_state.operation = UpdateOperation.IDLE
+            self._notify_updates()
+
+    async def check_for_updates(self, _=None, *, manual: bool = True) -> None:
+        service = self.update_service
+        if service is None or not self._begin_update_operation(
+            UpdateOperation.CHECKING
+        ):
+            return
+        self._set_update_status("checking_github_for_stable_releases_c824dd")
+        self.update_state.is_error = False
+        self._notify_updates()
+        try:
+            now = datetime.datetime.now(datetime.UTC)
+            if not manual:
+                last_checked_at = (
+                    await self.controller.settings_store.get_last_update_check()
+                )
+                if self._closing:
+                    return
+                if not should_check_for_updates(last_checked_at, now):
+                    self._set_update_status(
+                        "updates_were_checked_within_the_last_24_ho_d7d791"
+                    )
+                    return
+            await self.controller.settings_store.set_last_update_check(now)
+            if self._closing:
+                return
+            self.update_state.release = None
+            self.update_state.installer = None
+            release = await service.check_for_update()
+            if self._closing:
+                return
+            self.update_state.release = release
+            if release is not None:
+                self._set_update_status("a_stable_update_is_available_72eac6")
+            else:
+                self._set_update_status(
+                    "update_none", version=self.controller.settings.app.version
+                )
+        except UpdateServiceError:
+            logger.exception("Could not check for application updates")
+            if not self._closing:
+                self._set_update_status("update_failed")
+                self.update_state.is_error = True
+        except Exception:
+            logger.exception("Could not check for application updates")
+            if not self._closing:
+                self._set_update_status(
+                    "the_update_check_failed_use_check_for_upda_ddb467"
+                )
+                self.update_state.is_error = True
+        finally:
+            self._finish_update_operation()
+
+    async def update_action(self, _) -> None:
+        release = self.update_state.release
+        service = self.update_service
+        if release is None:
+            return
+        if self.update_state.installer is not None:
+            self.show_update_install_confirmation()
+            return
+        if service is None or not self._begin_update_operation(
+            UpdateOperation.DOWNLOADING
+        ):
+            return
+        self._set_update_status("update_downloading", version=release.version)
+        self.update_state.is_error = False
+        self._notify_updates()
+        try:
+            installer = await service.download_and_verify(release)
+            if self._closing:
+                return
+            self.update_state.installer = installer
+            self._set_update_status("update_downloaded", version=release.version)
+        except UpdateServiceError:
+            logger.exception("Could not download an application update")
+            if not self._closing:
+                self._set_update_status("update_failed")
+                self.update_state.is_error = True
+        except Exception:
+            logger.exception("Could not download an application update")
+            if not self._closing:
+                self._set_update_status(
+                    "the_update_download_failed_retry_the_downl_25156f"
+                )
+                self.update_state.is_error = True
+        finally:
+            self._finish_update_operation()
+
+    def show_update_install_confirmation(self) -> None:
+        release = self.update_state.release
+        installer = self.update_state.installer
+        if release is None or installer is None or installer.version != release.version:
+            return
+        if not self._begin_update_operation(UpdateOperation.CONFIRMING):
+            return
+        token = object()
+        self._update_confirmation = (token, installer)
+
+        async def confirm(event):
+            await self.confirm_update_install(event, token=token)
+
+        dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text(self.tr("install_transfercove_update_db2d86")),
+            content=ft.Text(self.tr("install_confirmation", version=installer.version)),
+            actions=[
+                ft.TextButton(
+                    self.tr("cancel_19766e"),
+                    on_click=lambda _: self.cancel_update_install(token),
+                ),
+                ft.Button(
+                    self.tr("close_and_install_1af572"),
+                    style=button_style(primary=True),
+                    on_click=confirm,
+                ),
+            ],
+            on_dismiss=lambda _: self.cancel_update_install(token, dismissed=True),
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        self._notify_updates()
+        try:
+            self.page.show_dialog(dialog)
+        except Exception:
+            self._update_confirmation = None
+            self._finish_update_operation()
+            raise
+
+    def cancel_update_install(self, token: object, *, dismissed: bool = False) -> None:
+        confirmation = self._update_confirmation
+        if (
+            self._closing
+            or confirmation is None
+            or confirmation[0] is not token
+            or self.update_state.operation != UpdateOperation.CONFIRMING
+        ):
+            return
+        self._update_confirmation = None
+        if not dismissed:
+            self.page.pop_dialog()
+        self._finish_update_operation()
+
+    async def confirm_update_install(self, _, *, token: object) -> None:
+        confirmation = self._update_confirmation
+        if (
+            self._closing
+            or confirmation is None
+            or confirmation[0] is not token
+            or self.update_state.operation != UpdateOperation.CONFIRMING
+        ):
+            return
+        installer = confirmation[1]
+        self._update_confirmation = None
+        self.update_state.operation = UpdateOperation.INSTALLING
+        self.page.pop_dialog()
+        self._set_update_status("verifying_the_installer_before_launch_06f377")
+        self.update_state.is_error = False
+        self._notify_updates()
+        try:
+            await verify_and_launch(installer)
+        except InstallerFileError:
+            logger.exception("Downloaded installer is invalid")
+            if not self._closing:
+                self.update_state.installer = None
+                self._set_update_status("update_failed")
+                self.update_state.is_error = True
+        except UpdateServiceError:
+            logger.exception("Could not install the application update")
+            if not self._closing:
+                self._set_update_status("update_failed")
+                self.update_state.is_error = True
+        except Exception:
+            logger.exception("Could not install the application update")
+            if not self._closing:
+                self._set_update_status(
+                    "the_installer_could_not_be_started_retry_t_88f033"
+                )
+                self.update_state.is_error = True
+        else:
+            if not self._closing:
+                try:
+                    await self.close()
+                except Exception:
+                    logger.exception(
+                        "Could not fully stop TransferCove before the update"
+                    )
+                await self.page.window.close()
+        finally:
+            self._finish_update_operation()
+
+    async def on_window_event(self, event: ft.WindowEvent) -> None:
+        if event.type == ft.WindowEventType.CLOSE:
+            await self.close()
+
     async def close(self) -> None:
+        if self._closing:
+            return
+        self._closing = True
+        self._update_confirmation = None
+        if self._update_check_task is not None and not self._update_check_task.done():
+            self._update_check_task.cancel()
         await self.controller.close()
 
 
 async def main(page: ft.Page) -> None:
     application = MainPage(page)
     await application.initialize()
+    # The installed Flet application captures stdout in console.log.
+    print(
+        f"TransferCove desktop initialized version={application.controller.settings.app.version}",
+        flush=True,
+    )
 
 
 def run() -> None:

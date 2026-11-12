@@ -1,0 +1,181 @@
+name: Stable release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+env:
+  POETRY_VERSION: '2.5.1'
+  POETRY_VIRTUALENVS_IN_PROJECT: 'true'
+  POETRY_NO_INTERACTION: '1'
+  PYTHONUTF8: '1'
+
+jobs:
+  checks:
+    name: Tests and lint (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    steps:
+      - name: Check out the tagged source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14'
+      - name: Install Poetry
+        run: python -m pip install "poetry==${{ env.POETRY_VERSION }}"
+      - name: Install locked dependencies
+        run: poetry install --with dev
+      - name: Validate project and lock file
+        run: poetry check --lock
+      - name: Validate locale catalogs and fallback
+        run: poetry run python -m app.core.localization
+      - name: Lint Python sources
+        run: poetry run ruff check app tests tools main.py alembic
+      - name: Check Python formatting
+        run: poetry run ruff format --check app tests tools main.py alembic
+      - name: Test installer smoke failure detection
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./.github/scripts/test-smoke-installer.ps1
+      - name: Run unit and integration tests
+        run: poetry run pytest
+
+  windows-release:
+    name: Build, verify, and publish Windows installer
+    needs: checks
+    runs-on: windows-2022
+    timeout-minutes: 75
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Check out the tagged source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14'
+      - name: Install Poetry and locked build dependencies
+        run: |
+          python -m pip install "poetry==$env:POETRY_VERSION"
+          poetry install --with dev,build
+      - name: Validate release tag and application version
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          if ($tag -notmatch '^v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$') {
+            throw "Stable release tags must use vX.Y.Z: $tag"
+          }
+          $version = (poetry version --short).Trim()
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot read the project version' }
+          if ($tag -cne "v$version") {
+            throw "Tag $tag does not match pyproject.toml version $version"
+          }
+          $appVersion = poetry run python -c "from app.core.settings import Settings; print(Settings().app.version)"
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot read the application version' }
+          if ($appVersion.Trim() -cne $version) {
+            throw "Application version $appVersion does not match project version $version"
+          }
+          "TRANSFER_COVE_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Enable Windows symlink support
+        run: |
+          New-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock' `
+            -Name AllowDevelopmentWithoutDevLicense -Value 1 -PropertyType DWord -Force
+      - name: Build and verify the Windows application with locked dependencies
+        run: |
+          New-Item -ItemType Directory -Path test-results -Force | Out-Null
+          poetry run python tools/export_flet_constraints.py --output test-results/flet-runtime-constraints.txt
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot export Poetry runtime constraints' }
+          $env:PIP_CONSTRAINT = (Resolve-Path 'test-results/flet-runtime-constraints.txt').Path
+          try {
+            poetry run flet build windows --yes --no-rich-output --python-version 3.14 --build-version $env:TRANSFER_COVE_VERSION --build-number $env:GITHUB_RUN_NUMBER
+            if ($LASTEXITCODE -ne 0) { throw 'Flet build failed' }
+          }
+          finally {
+            Remove-Item Env:PIP_CONSTRAINT -ErrorAction SilentlyContinue
+          }
+      - name: Verify packaged Python dependencies
+        run: poetry run python tools/verify_flet_bundle.py --site-packages build/site-packages
+      - name: Verify packaged locale catalogs
+        run: poetry run python tools/verify_locale_bundle.py
+      - name: Build Windows installer and checksum
+        run: |
+          ./.github/scripts/build-installer.ps1
+          $installerPath = (Resolve-Path "dist/installer/TransferCove-Setup-$($env:TRANSFER_COVE_VERSION).exe").Path
+          $checksumPath = "$($installerPath).sha256"
+          $hash = (Get-FileHash -LiteralPath $installerPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          [System.IO.File]::WriteAllText($checksumPath, "$hash  $([System.IO.Path]::GetFileName($installerPath))`n", [System.Text.Encoding]::ASCII)
+      - name: Download and verify the previous release for the upgrade test
+        run: |
+          $baseline = Get-Content .github/upgrade-baseline.json -Raw | ConvertFrom-Json
+          if ([version]$env:TRANSFER_COVE_VERSION -le [version]$baseline.version) {
+            throw 'The release must be newer than the upgrade baseline'
+          }
+          $directory = New-Item -ItemType Directory -Path test-results/upgrade-baseline -Force
+          $previousInstaller = Join-Path $directory.FullName "TransferCove-Setup-$($baseline.version).exe"
+          Invoke-WebRequest -Uri $baseline.installer_url -OutFile $previousInstaller
+          $actualHash = (Get-FileHash -LiteralPath $previousInstaller -Algorithm SHA256).Hash
+          if ($actualHash -ine $baseline.sha256) { throw 'Previous installer checksum mismatch' }
+          "TRANSFER_COVE_PREVIOUS_INSTALLER=$previousInstaller" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Verify fresh install, scope preservation, and upgrade from the previous release
+        run: |
+          $installer = "dist/installer/TransferCove-Setup-$($env:TRANSFER_COVE_VERSION).exe"
+          $baseline = Get-Content .github/upgrade-baseline.json -Raw | ConvertFrom-Json
+          ./.github/scripts/smoke-installer.ps1 -InstallerPath $installer -ExpectedVersion $env:TRANSFER_COVE_VERSION -InstallMode CurrentUser -TestUpgradePreservesData -LogDirectory test-results/installer/current-user
+          ./.github/scripts/smoke-installer.ps1 -InstallerPath $installer -ExpectedVersion $env:TRANSFER_COVE_VERSION -InstallMode AllUsers -LogDirectory test-results/installer/all-users
+          ./.github/scripts/smoke-installer.ps1 -InstallerPath $installer -ExpectedVersion $env:TRANSFER_COVE_VERSION -PreviousInstallerPath $env:TRANSFER_COVE_PREVIOUS_INSTALLER -PreviousVersion $baseline.version -InstallMode $baseline.install_mode -LogDirectory test-results/installer/upgrade
+      - name: Publish GitHub Release with verified assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          $installerPath = (Resolve-Path "dist/installer/TransferCove-Setup-$($env:TRANSFER_COVE_VERSION).exe").Path
+          $checksumPath = "$($installerPath).sha256"
+          $headers = @{
+            Accept = 'application/vnd.github+json'
+            Authorization = "Bearer $env:GH_TOKEN"
+            'X-GitHub-Api-Version' = '2026-03-10'
+          }
+          $releaseBody = @{
+            tag_name = $tag
+            name = $tag
+            draft = $true
+            prerelease = $false
+            generate_release_notes = $true
+            make_latest = 'true'
+          } | ConvertTo-Json
+          $release = Invoke-RestMethod -Method Post `
+            -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases" `
+            -Headers $headers -ContentType 'application/json' -Body $releaseBody
+          $uploadUrl = [string]$release.upload_url -replace '\{\?name,label\}$', ''
+          foreach ($assetPath in @($installerPath, $checksumPath)) {
+            $assetName = [System.IO.Path]::GetFileName($assetPath)
+            $assetUrl = "$uploadUrl`?name=$([Uri]::EscapeDataString($assetName))"
+            Invoke-RestMethod -Method Post -Uri $assetUrl -Headers $headers `
+              -ContentType 'application/octet-stream' -InFile $assetPath | Out-Null
+          }
+          $publishBody = @{ draft = $false; prerelease = $false } | ConvertTo-Json
+          Invoke-RestMethod -Method Patch -Uri $release.url -Headers $headers `
+            -ContentType 'application/json' -Body $publishBody | Out-Null
+      - name: Upload installer diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-installer-logs-${{ github.sha }}
+          path: test-results/installer/
+          if-no-files-found: ignore
+          retention-days: 7

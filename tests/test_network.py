@@ -13,9 +13,7 @@ def test_is_lan_ipv4_rejects_non_shareable_addresses() -> None:
 
 def test_get_lan_ipv4_prefers_the_default_route(monkeypatch) -> None:
     monkeypatch.setattr(network, "_probe_default_route", lambda: "192.168.1.42")
-    monkeypatch.setattr(
-        network, "_hostname_ipv4_addresses", lambda: ["10.0.0.7"]
-    )
+    monkeypatch.setattr(network, "_hostname_ipv4_addresses", lambda: ["10.0.0.7"])
 
     assert network.get_lan_ipv4() == "192.168.1.42"
 

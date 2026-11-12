@@ -1,6 +1,6 @@
 [project]
 name = "transfercove"
-version = "0.2.3"
+version = "0.3.2"
 description = "Desktop-controlled file transfers over your local network"
 license = "MIT"
 authors = [
@@ -19,6 +19,7 @@ dependencies = [
     "python-multipart (>=0.0.32,<0.0.33)",
     "qrcode (>=8.2,<9.0)",
     "flet (>=0.86.0,<1.0.0)",
+    "babel (>=2.17,<3.0)",
 ]
 
 
@@ -32,6 +33,13 @@ include = [{ path = "assets", format = ["sdist", "wheel"] }]
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=9.1.1,<10.0.0"
+ruff = "==0.16.8"
+
+[tool.poetry.group.build]
+optional = true
+
+[tool.poetry.group.build.dependencies]
+flet-cli = "==0.86.5"
 
 [tool.flet]
 product = "TransferCove"
@@ -40,10 +48,16 @@ company = ""
 copyright = "Copyright (c) 2026 AlexZha-dev"
 icon_background = "#07100C"
 
+# Flet's build template pins jni 1.0.0, which is incompatible with newer
+# jni_flutter releases. Remove this override when upgrading to a fixed Flet.
+[tool.flet.flutter.pubspec.dependency_overrides]
+jni = "^1.1.0"
+
 [tool.flet.app]
 module = "main"
 exclude = [
     ".git",
+    ".github",
     ".venv",
     "venv",
     ".env",
@@ -59,6 +73,9 @@ exclude = [
     "installer",
     "tools",
     "tests",
+    "plan",
+    ".preview-check",
+    "test-results",
     "app/.flet",
     ".tmp-test",
     ".tmp-pytest-run",
@@ -79,3 +96,10 @@ app_files = ["**/__pycache__", "**/.pytest_cache", "**/.flet"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+
+[tool.ruff]
+target-version = "py314"
+extend-exclude = ["venv", "build", "dist", ".preview-check", ".tmp-*"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]

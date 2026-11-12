@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 
 from pydantic import BaseModel, Field
@@ -21,10 +22,16 @@ def is_packaged_build() -> bool:
     return bool(os.getenv("FLET_APP_CONSOLE"))
 
 
+def is_windows_packaged_build() -> bool:
+    """Return whether this is the installed Windows desktop application."""
+
+    return sys.platform == "win32" and is_packaged_build()
+
+
 class AppConfig(BaseModel):
     title: str = "TransferCove"
     description: str = "Application for sharing files over a local network"
-    version: str = "0.2.3"
+    version: str = "0.3.2"
     debug: bool = False
 
 
@@ -40,6 +47,13 @@ class TransmitterSettings(BaseModel):
     database_url: str = "sqlite+aiosqlite:///./.data/files.db"
 
 
+class UploadLimits(BaseModel):
+    max_file_mib: int = Field(default=1024, ge=1, le=1048576)
+    max_concurrent: int = Field(default=2, ge=1, le=100)
+    reserve_mib: int = Field(default=512, ge=0, le=1048576)
+    idle_timeout_seconds: int = Field(default=60, ge=1, le=86400)
+
+
 class DesktopConfig(BaseModel):
     language: str = "en"
     auto_start: bool = False
@@ -53,6 +67,7 @@ class Settings(BaseSettings):
     uvicorn: UvicornConfig = Field(default_factory=UvicornConfig)
     transmitter: TransmitterSettings = Field(default_factory=TransmitterSettings)
     desktop: DesktopConfig = Field(default_factory=DesktopConfig)
+    upload_limits: UploadLimits = Field(default_factory=UploadLimits)
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -9,7 +9,7 @@ from alembic.util.exc import CommandError
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.application import create_app
-from app.core.migrations import upgrade_database_async
+from app.core.migrations import cleanup_legacy_history_async
 from app.core.settings import Settings
 
 logger = logging.getLogger(__name__)
@@ -23,8 +23,18 @@ class ServerState(StrEnum):
     ERROR = "error"
 
 
+class ServerErrorCode(StrEnum):
+    UNKNOWN = "unknown"
+    STORAGE_UNAVAILABLE = "storage_unavailable"
+    STARTUP_TIMEOUT = "startup_timeout"
+
+
 class ServerError(RuntimeError):
     """Raised when the embedded FastAPI server cannot start."""
+
+    def __init__(self, message: str, code: ServerErrorCode = ServerErrorCode.UNKNOWN):
+        super().__init__(message)
+        self.code = code
 
 
 class ServerManager:
@@ -58,9 +68,14 @@ class ServerManager:
             self.error = None
 
             try:
-                await upgrade_database_async(settings.transmitter.database_url)
-
-                application = create_app(settings)
+                await cleanup_legacy_history_async(settings.transmitter.database_url)
+                try:
+                    application = create_app(settings, cleanup_on_startup=False)
+                except OSError as error:
+                    raise ServerError(
+                        "Could not prepare the storage directory",
+                        ServerErrorCode.STORAGE_UNAVAILABLE,
+                    ) from error
                 config = uvicorn.Config(
                     app=application,
                     host=settings.uvicorn.host,
@@ -74,7 +89,7 @@ class ServerManager:
 
                 self._server = uvicorn.Server(config)
                 self._task = asyncio.create_task(
-                    self._server.serve(),
+                    self._serve(),
                     name="transfercove-fastapi",
                 )
 
@@ -91,7 +106,22 @@ class ServerManager:
                 self.error = str(error)
                 await self._stop_unlocked()
                 self.state = ServerState.ERROR
-                raise ServerError(str(error)) from error
+                if isinstance(error, ServerError):
+                    raise
+                code = (
+                    ServerErrorCode.STARTUP_TIMEOUT
+                    if isinstance(error, TimeoutError)
+                    else ServerErrorCode.UNKNOWN
+                )
+                raise ServerError(str(error), code) from error
+
+    async def _serve(self) -> None:
+        """Keep Uvicorn's startup exit from terminating the desktop process."""
+        assert self._server is not None
+        try:
+            await self._server.serve()
+        except SystemExit as error:
+            raise RuntimeError("FastAPI server failed during startup") from error
 
     async def stop(self) -> None:
         async with self._lock:
@@ -186,7 +216,7 @@ class ServerManager:
             await writer.drain()
             response = await asyncio.wait_for(reader.read(1024), timeout=0.5)
             return response.startswith((b"HTTP/1.1 200", b"HTTP/1.0 200"))
-        except (OSError, TimeoutError):
+        except OSError, TimeoutError:
             return False
         finally:
             if writer is not None:

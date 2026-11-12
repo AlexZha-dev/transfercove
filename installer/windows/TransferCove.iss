@@ -1,17 +1,32 @@
 ; TransferCove Windows installer for Inno Setup 6+
 ; Build the Flet application first:
-;   poetry run flet build windows --yes --build-version 0.2.3
+;   poetry run flet build windows --yes --build-version (poetry version --short)
 ; Then compile this file with Inno Setup Compiler.
 
 #define MyAppName "TransferCove"
-#define MyAppVersion "0.2.3"
-#define MyAppPublisher "AlexZha-dev"
-#define MyAppURL "https://github.com/AlexZha-dev/WIFI-trancmitor"
 #define MyAppExeName "TransferCove.exe"
 #define BuildDir "..\..\build\windows"
+#ifndef MyAppId
+  #define MyAppId "{A6F4C3F3-2DA6-4AF4-9E2F-7C0A0200BEEF}"
+#endif
+; Reject extra quotes or other accidental changes to the uninstall registry key.
+#if Len(MyAppId) != 38 || Copy(MyAppId, 1, 1) != "{" || Copy(MyAppId, 38, 1) != "}"
+  #error "MyAppId must be a GUID enclosed in braces, without quotes"
+#endif
+#ifndef MyAppVersion
+  #define MyAppVersion GetStringFileInfo(BuildDir + "\" + MyAppExeName, "ProductVersion")
+#endif
+#if MyAppVersion == ""
+  #error "Build the application first or pass /DMyAppVersion to ISCC"
+#endif
+#define MyAppPublisher "AlexZha-dev"
+#define MyAppURL "https://github.com/AlexZha-dev/transfercove"
+#ifndef InstallerName
+  #define InstallerName "TransferCove-Setup-" + MyAppVersion
+#endif
 
 [Setup]
-AppId={{A6F4C3F3-2DA6-4AF4-9E2F-7C0A0200BEEF}
+AppId={#StringChange(MyAppId, '{', '{{')}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
@@ -21,10 +36,12 @@ AppUpdatesURL={#MyAppURL}/releases
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
-ArchitecturesInstallIn64BitMode=x64
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
+PrivilegesRequiredOverridesAllowed=commandline
 OutputDir=..\..\dist\installer
-OutputBaseFilename=TransferCove-Setup-{#MyAppVersion}
+OutputBaseFilename={#InstallerName}
 SetupIconFile=..\..\assets\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 LicenseFile=..\..\LICENSE

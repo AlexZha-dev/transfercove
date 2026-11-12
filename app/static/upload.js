@@ -1,9 +1,52 @@
-const availableLocales = window.UPLOAD_LOCALES || {};
-const requestedLanguage = String(
-  window.APP_LANGUAGE || document.documentElement.dataset.language || "en",
-).toLowerCase().split("-")[0];
-const activeLanguage = availableLocales[requestedLanguage] ? requestedLanguage : "en";
-const messages = availableLocales[activeLanguage] || {};
+let catalogs = { en: { id: "en", name: "English", web: window.UPLOAD_LOCALES.en } };
+let activeLanguage = "en";
+let messages = catalogs.en.web;
+const languageSelect = document.querySelector("#language-select");
+const languageStorageKey = "transfercove.upload.language";
+
+function resolveLanguage(preferences) {
+  for (const preference of preferences) {
+    let candidate = String(preference || "").replaceAll("_", "-").toLowerCase();
+    while (candidate) {
+      if (catalogs[candidate]) return candidate;
+      candidate = candidate.includes("-") ? candidate.slice(0, candidate.lastIndexOf("-")) : "";
+    }
+  }
+  return "en";
+}
+
+function setLanguage(language) {
+  activeLanguage = resolveLanguage([language]);
+  messages = catalogs[activeLanguage]?.web || {};
+  languageSelect.value = activeLanguage;
+  applyTranslations();
+  renderFileList();
+  updateOverallProgress();
+  if (state.statusKey) setStatus(state.statusKey, state.statusTone, state.statusValues);
+}
+
+async function initializeLanguages() {
+  try {
+    const response = await fetch("/locales");
+    if (response.ok) catalogs = await response.json();
+  } catch (_) { /* Keep the bundled English fallback. */ }
+  if (!catalogs.en) catalogs.en = { id: "en", name: "English", web: window.UPLOAD_LOCALES.en };
+  languageSelect.replaceChildren();
+  Object.entries(catalogs).forEach(([id, catalog]) => {
+    const option = document.createElement("option");
+    option.value = id;
+    option.textContent = catalog.name;
+    languageSelect.appendChild(option);
+  });
+  let saved;
+  try { saved = localStorage.getItem(languageStorageKey); } catch (_) { /* Storage can be disabled. */ }
+  setLanguage(resolveLanguage(saved ? [saved] : (navigator.languages || [navigator.language])));
+}
+
+languageSelect.addEventListener("change", () => {
+  try { localStorage.setItem(languageStorageKey, languageSelect.value); } catch (_) { /* Storage can be disabled. */ }
+  setLanguage(languageSelect.value);
+});
 
 const form = document.querySelector("#upload-form");
 const input = document.querySelector("#file-input");
@@ -27,17 +70,28 @@ const state = {
   currentXhr: null,
   stopRequested: false,
   cancelRequested: false,
+  statusKey: "chooseFiles",
+  statusTone: "neutral",
+  statusValues: {},
 };
 
 function getMessage(key) {
-  return key.split(".").reduce((value, part) => value?.[part], messages);
+  const lookup = (catalog) => key.split(".").reduce((value, part) => value?.[part], catalog);
+  const translated = lookup(messages);
+  if (typeof translated === "string" && translated.trim()) return translated;
+  const english = lookup(catalogs.en.web);
+  if (typeof english === "string" && english.trim()) return english;
+  return key.startsWith("fileCount.") ? catalogs.en.web.fileCount?.other : undefined;
 }
 
 function t(key, values = {}) {
   const message = getMessage(key);
-  if (typeof message !== "string") return key;
+  if (typeof message !== "string") return "";
 
-  return message.replace(/\{\{(\w+)\}\}/g, (_, name) => values[name] ?? "");
+  return message.replace(/\{\{(\w+)\}\}/g, (_, name) => {
+    const value = values[name];
+    return typeof value === "number" ? new Intl.NumberFormat(activeLanguage).format(value) : value ?? "";
+  });
 }
 
 function applyTranslations() {
@@ -61,7 +115,7 @@ function formatBytes(bytes) {
   const value = bytes / 1024 ** unitIndex;
   const digits = unitIndex === 0 ? 0 : value < 10 ? 2 : 1;
 
-  return `${value.toFixed(digits)} ${units[unitIndex]}`;
+  return `${new Intl.NumberFormat(activeLanguage, { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value)} ${units[unitIndex]}`;
 }
 
 function formatSpeed(bytesPerSecond) {
@@ -69,8 +123,11 @@ function formatSpeed(bytesPerSecond) {
   return `${formatBytes(bytesPerSecond)}/s`;
 }
 
-function setStatus(message, tone = "neutral") {
-  uploadStatus.textContent = message;
+function setStatus(key, tone = "neutral", values = {}) {
+  state.statusKey = key;
+  state.statusTone = tone;
+  state.statusValues = values;
+  uploadStatus.textContent = t(key, values);
   uploadStatus.className = `status-message status-${tone}`;
 }
 
@@ -93,7 +150,7 @@ function updateFileCount() {
   }
 
   const totalSize = state.files.reduce((sum, item) => sum + item.file.size, 0);
-  const key = state.files.length === 1 ? "fileCount.one" : "fileCount.other";
+  const key = `fileCount.${new Intl.PluralRules(activeLanguage).select(state.files.length)}`;
   fileCount.textContent = t(key, {
     count: state.files.length,
     size: formatBytes(totalSize),
@@ -105,7 +162,7 @@ function getFileStatus(item) {
     return `${t("uploading")} · ${formatSpeed(item.speed)}`;
   }
   if (item.status === "done") return t("done");
-  if (item.status === "error") return item.error || t("error");
+  if (item.status === "error") return item.errorKey ? t(item.errorKey, item.errorValues) : t("error");
   if (item.status === "stopped") return t("stopped");
   return t("queued");
 }
@@ -129,6 +186,7 @@ function renderFileList() {
           <span class="file-size"></span>
           <span class="file-status"></span>
         </div>
+        <div class="file-saved-name" hidden></div>
         <div class="progress-track">
           <div class="file-progress-fill"></div>
         </div>
@@ -155,6 +213,7 @@ function updateFileRow(index) {
   const progress = row.querySelector(".file-progress-fill");
   const percentLabel = row.querySelector(".file-percent");
   const statusLabel = row.querySelector(".file-status");
+  const savedNameLabel = row.querySelector(".file-saved-name");
 
   row.classList.toggle("is-active", item.status === "uploading");
   row.classList.toggle("is-done", item.status === "done");
@@ -163,6 +222,12 @@ function updateFileRow(index) {
   progress.style.width = `${percent}%`;
   percentLabel.textContent = `${percent}%`;
   statusLabel.textContent = getFileStatus(item);
+  const wasRenamed = item.status === "done" && item.savedFilename &&
+    item.savedFilename !== item.file.name;
+  savedNameLabel.hidden = !wasRenamed;
+  savedNameLabel.textContent = wasRenamed
+    ? t("savedAs", { filename: item.savedFilename })
+    : "";
 }
 
 function updateOverallProgress() {
@@ -209,6 +274,7 @@ function selectFiles(fileListValue) {
     uploaded: 0,
     speed: 0,
     error: "",
+    savedFilename: "",
   }));
 
   state.startedAt = 0;
@@ -218,7 +284,7 @@ function selectFiles(fileListValue) {
   updateOverallProgress();
 
   if (state.files.length > 0) {
-    setStatus(t("ready"), "ready");
+    setStatus("ready", "ready");
   }
 }
 
@@ -229,18 +295,21 @@ function uploadFile(item, index) {
     const formData = new FormData();
     let settled = false;
 
-    const rejectUpload = (message, code = "error") => {
+    const rejectUpload = (key, code = "error", values = {}) => {
+      const message = t(key, values);
       if (settled) return;
       settled = true;
       state.currentXhr = null;
       item.status = code === "stopped" ? "stopped" : code === "canceled" ? "canceled" : "error";
-      item.error = message;
+      item.errorKey = key;
+      item.errorValues = values;
       updateFileRow(index);
       updateOverallProgress();
       reject(Object.assign(new Error(message), { code }));
     };
 
     item.status = "uploading";
+    item.savedFilename = "";
     updateFileRow(index);
     state.currentXhr = xhr;
     xhr.open("POST", "/v1/files");
@@ -261,6 +330,14 @@ function uploadFile(item, index) {
       if (settled) return;
 
       if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const payload = JSON.parse(xhr.responseText);
+          if (typeof payload?.saved_filename === "string") {
+            item.savedFilename = payload.saved_filename;
+          }
+        } catch (_error) {
+          // A successful upload may come from an older server without metadata.
+        }
         settled = true;
         state.currentXhr = null;
         item.status = "done";
@@ -272,27 +349,29 @@ function uploadFile(item, index) {
         return;
       }
 
-      let serverMessage = t("serverError", { status: xhr.status });
-      try {
-        const payload = JSON.parse(xhr.responseText);
-        if (payload.detail) serverMessage = `${serverMessage} — ${payload.detail}`;
-      } catch (_error) {
-        // Keep the generic status message when the server did not return JSON.
-      }
-      rejectUpload(serverMessage);
+      const errorKeys = {
+        400: "uploadInvalid",
+        408: "uploadTimedOut",
+        413: "uploadTooLarge",
+        422: "uploadInvalid",
+        429: "uploadBusy",
+        507: "uploadNoSpace",
+      };
+      // API detail is diagnostic text and may be in another language.
+      rejectUpload(errorKeys[xhr.status] || "serverError", "error", { status: xhr.status });
     });
 
     xhr.addEventListener("error", () => {
-      rejectUpload(t("connectionError"));
+      rejectUpload("connectionError");
     });
 
     xhr.addEventListener("abort", () => {
       if (state.cancelRequested) {
-        rejectUpload(t("canceled"), "canceled");
+        rejectUpload("canceled", "canceled");
       } else if (state.stopRequested) {
-        rejectUpload(t("stopped"), "stopped");
+        rejectUpload("stopped", "stopped");
       } else {
-        rejectUpload(t("connectionError"));
+        rejectUpload("connectionError");
       }
     });
 
@@ -326,14 +405,14 @@ cancelButton.addEventListener("click", () => {
   }
 
   resetQueue();
-  setStatus(t("canceled"));
+  setStatus("canceled");
 });
 
 stopButton.addEventListener("click", () => {
   if (!state.isUploading) return;
 
   state.stopRequested = true;
-  setStatus(t("stoppedStatus"), "warning");
+  setStatus("stoppedStatus", "warning");
   if (state.currentXhr) state.currentXhr.abort();
 });
 
@@ -379,7 +458,7 @@ form.addEventListener("submit", async (event) => {
 
   updateControls();
   updateOverallProgress();
-  setStatus(t("uploadStarted"), "active");
+  setStatus("uploadStarted", "active");
 
   for (let index = 0; index < state.files.length; index++) {
     const item = state.files[index];
@@ -402,7 +481,7 @@ form.addEventListener("submit", async (event) => {
     resetQueue();
     state.stopRequested = false;
     state.cancelRequested = false;
-    setStatus(t("canceled"));
+    setStatus("canceled");
     return;
   }
 
@@ -410,22 +489,23 @@ form.addEventListener("submit", async (event) => {
   updateOverallProgress();
 
   if (state.stopRequested) {
-    setStatus(t("stoppedStatus"), "warning");
+    setStatus("stoppedStatus", "warning");
     return;
   }
 
   const failed = state.files.filter((item) => item.status === "error");
 
   if (failed.length === 0) {
-    setStatus(t("uploadedFiles", { count: state.files.length }), "success");
+    setStatus("uploadedFiles", "success", { count: state.files.length });
   } else {
-    setStatus(t("failedFiles", {
+    setStatus("failedFiles", "error", {
       count: failed.length,
       total: state.files.length,
-    }), "error");
+    });
   }
 });
 
 applyTranslations();
 updateControls();
 updateOverallProgress();
+initializeLanguages();
