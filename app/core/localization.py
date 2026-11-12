@@ -40,6 +40,8 @@ def validate_catalogs(catalogs: dict[str, dict]) -> list[str]:
     english = catalogs.get("en")
     if not english:
         return ["Missing English catalog"]
+    if not english.get("desktop"):
+        errors.append("en.desktop: catalog must not be empty")
 
     def check(reference, actual, path, language):
         if isinstance(reference, dict):
@@ -107,7 +109,7 @@ class Localizer:
         english = self.catalogs.get("en", {}).get("desktop", {})
         messages = self.catalogs.get(self.language, {}).get("desktop", {})
         message = messages.get(key, english.get(key, ""))
-        if not isinstance(message, str):
+        if not isinstance(message, str) or not message.strip():
             message = english.get(key, "")
         return re.sub(r"\{\{(\w+)\}\}", lambda m: str(values.get(m[1], m[0])), message)
 

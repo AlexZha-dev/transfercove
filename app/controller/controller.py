@@ -1,9 +1,12 @@
+import logging
 from collections.abc import Callable
 
 from app.core.network import get_lan_ipv4
 from app.core.settings import Settings
 from app.core.settings_store import SettingsStore
 from app.server.manager import ServerError, ServerManager, ServerState
+
+logger = logging.getLogger(__name__)
 
 
 class AppController:
@@ -64,6 +67,7 @@ class AppController:
         try:
             await self.server_manager.start(self.settings)
         except ServerError as error:
+            logger.exception("Could not start server")
             self.last_error = str(error)
             self.notify()
             return False
