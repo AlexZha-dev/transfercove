@@ -16,5 +16,8 @@ before submitting a translation. Missing messages fall back to English at
 runtime, but the validator reports them for translators. Restart the server
 after adding a catalog and reload the upload page to see the new language.
 
-The desktop catalog is currently a placeholder: desktop interface text and
-desktop language switching have not yet been migrated to these catalogs.
+Translate both the `desktop` and `web` sections. Desktop translations are
+applied after settings are saved and restored when the app restarts. The upload
+page has a separate language preference stored by the browser. Diagnostic
+details stay in application logs; names, paths and other user values are not
+translated.
