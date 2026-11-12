@@ -10,10 +10,13 @@ import subprocess
 import sys
 from pathlib import Path
 from time import monotonic, sleep
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock
 
 import httpx
 import pytest
 
+from app.controller.controller import AppController
 from app.core.settings import Settings, TransmitterSettings, UvicornConfig
 from app.server.manager import ServerError, ServerErrorCode, ServerManager, ServerState
 
@@ -57,6 +60,85 @@ def test_occupied_port_does_not_exit_the_desktop_process(tmp_path):
             assert manager.state == ServerState.ERROR
 
         asyncio.run(scenario())
+
+
+def test_startup_timeout_has_a_structured_code(monkeypatch, tmp_path):
+    async def timed_out(*args):
+        raise TimeoutError("readiness timeout")
+
+    async def scenario():
+        manager = ServerManager()
+        monkeypatch.setattr(manager, "_wait_until_ready", timed_out)
+        with pytest.raises(ServerError) as caught:
+            await manager.start(
+                Settings(transmitter=TransmitterSettings(storage_dir=tmp_path))
+            )
+        assert caught.value.code == ServerErrorCode.STARTUP_TIMEOUT
+        assert manager.state == ServerState.ERROR
+
+    asyncio.run(scenario())
+
+
+def test_language_change_keeps_running_server_and_uploads_available(tmp_path):
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        port = listener.getsockname()[1]
+    settings = Settings(
+        uvicorn=UvicornConfig(host="127.0.0.1", port=port),
+        transmitter=TransmitterSettings(
+            storage_dir=tmp_path / "files",
+            database_url=f"sqlite+aiosqlite:///{(tmp_path / 'files.db').as_posix()}",
+        ),
+    )
+
+    async def scenario():
+        controller = AppController.__new__(AppController)
+        controller.settings = settings
+        controller.server_manager = ServerManager()
+        controller.settings_store = SimpleNamespace(
+            save=AsyncMock(side_effect=lambda value: value)
+        )
+        controller.notify = Mock()
+        try:
+            await controller.server_manager.start(settings)
+            server = controller.server_manager._server
+            async with httpx.AsyncClient(trust_env=False) as client:
+                started, resume = asyncio.Event(), asyncio.Event()
+
+                async def multipart():
+                    yield (
+                        b'--boundary\r\nContent-Disposition: form-data; name="file"; '
+                        b'filename="language.txt"\r\nContent-Type: text/plain\r\n\r\ncontent'
+                    )
+                    started.set()
+                    await resume.wait()
+                    yield b"\r\n--boundary--\r\n"
+
+                upload = asyncio.create_task(
+                    client.post(
+                        f"http://127.0.0.1:{port}/v1/files",
+                        content=multipart(),
+                        headers={
+                            "Content-Type": "multipart/form-data; boundary=boundary"
+                        },
+                    )
+                )
+                await asyncio.wait_for(started.wait(), timeout=5)
+                updated = settings.model_copy(deep=True)
+                updated.desktop.language = "ru"
+                assert await controller.save_settings(updated)
+                assert controller.server_manager._server is server
+                assert controller.server_manager.is_running
+                resume.set()
+                response = await upload
+                response.raise_for_status()
+            assert (
+                settings.transmitter.storage_dir / "language.txt"
+            ).read_bytes() == b"content"
+        finally:
+            await controller.server_manager.stop()
+
+    asyncio.run(scenario())
 
 
 @pytest.mark.parametrize("history", ["legacy", "missing", "corrupt", "unavailable"])

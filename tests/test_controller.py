@@ -1,3 +1,9 @@
+import asyncio
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock
+
+import pytest
+
 from app.controller.controller import AppController
 from app.core.settings import Settings, UvicornConfig
 
@@ -22,13 +28,6 @@ def test_server_url_keeps_explicit_bind_address() -> None:
     )
 
     assert controller.server_url == "http://127.0.0.1:8123/"
-
-
-import asyncio
-from types import SimpleNamespace
-from unittest.mock import AsyncMock, Mock
-
-import pytest
 
 
 @pytest.mark.parametrize(

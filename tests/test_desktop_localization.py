@@ -94,14 +94,20 @@ def test_initial_language_and_unknown_locale(monkeypatch):
     assert view.route_title.value == "Dashboard"
 
 
-def test_server_error_uses_localized_structured_reason(monkeypatch):
+@pytest.mark.parametrize(
+    ("code", "expected"),
+    [
+        (ServerErrorCode.STORAGE_UNAVAILABLE, "Папка хранения недоступна"),
+        (ServerErrorCode.STARTUP_TIMEOUT, "Сервер не запустился вовремя"),
+        (ServerErrorCode.UNKNOWN, "Не удалось запустить сервер"),
+    ],
+)
+def test_server_error_uses_localized_structured_reason(monkeypatch, code, expected):
     view, controller = make_view(monkeypatch, "ru")
     controller.server_state = ServerState.ERROR
-    controller.last_error = ServerError(
-        "technical details", ServerErrorCode.STORAGE_UNAVAILABLE
-    )
+    controller.last_error = ServerError("technical details", code)
     view.current_view.refresh()
-    assert "Папка хранения недоступна" in view.current_view.error.value
+    assert expected in view.current_view.error.value
     assert "technical details" not in view.current_view.error.value
 
 
