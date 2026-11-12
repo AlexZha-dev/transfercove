@@ -117,6 +117,8 @@ jobs:
           }
       - name: Verify the packaged Python dependencies match poetry.lock
         run: poetry run python tools/verify_flet_bundle.py --site-packages build/site-packages
+      - name: Verify packaged locale catalogs
+        run: poetry run python tools/verify_locale_bundle.py
       - name: Build installer
         id: installer
         run: ./.github/scripts/build-installer.ps1 -InstallerName "TransferCove-test-$env:GITHUB_SHA"

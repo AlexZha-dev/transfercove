@@ -1,4 +1,10 @@
+import ast
 import json
+import shutil
+import subprocess
+from pathlib import Path
+
+import pytest
 
 from app.core.localization import (
     Localizer,
@@ -66,3 +72,58 @@ def test_locale_endpoint_exposes_discovered_catalogs(client):
     response = client.get("/locales")
     assert response.status_code == 200
     assert response.json()["ru"]["web"]["language"] == "Язык"
+
+
+def test_english_desktop_catalog_cannot_be_empty():
+    catalogs = load_catalogs()
+    catalogs["en"]["desktop"] = {}
+    assert "en.desktop: catalog must not be empty" in validate_catalogs(catalogs)
+
+
+def test_desktop_translation_keys_exist_in_all_catalogs():
+    catalogs = load_catalogs()
+    for path in Path("app/view").glob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not (
+                isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+            ):
+                continue
+            if node.func.attr not in {"tr", "_set_update_status"} or not node.args:
+                continue
+            key = node.args[0]
+            if isinstance(key, ast.Constant) and isinstance(key.value, str):
+                for language, catalog in catalogs.items():
+                    assert key.value in catalog["desktop"], (path, language, key.value)
+
+
+def test_web_fallback_for_missing_empty_and_invalid_messages():
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js is required to execute the browser translation functions")
+    script = Path("app/static/upload.js").read_text(encoding="utf-8")
+    functions = script[
+        script.index("function getMessage(") : script.index(
+            "function applyTranslations("
+        )
+    ]
+    javascript = (
+        """
+const catalogs = {en: {web: {greeting: "Hello {{name}}", fileCount: {other: "{{count}} files"}}}};
+let activeLanguage = "ru";
+let messages = {};
+"""
+        + functions
+        + """
+const results = [];
+for (const value of [undefined, "", "   ", 42, {}, "Привет {{name}}"]) {
+    messages.greeting = value;
+    results.push(t("greeting", {name: "A.txt"}));
+}
+console.log(JSON.stringify(results));
+"""
+    )
+    result = subprocess.run(
+        [node, "-e", javascript], check=True, capture_output=True, encoding="utf-8"
+    )
+    assert json.loads(result.stdout) == ["Hello A.txt"] * 5 + ["Привет A.txt"]

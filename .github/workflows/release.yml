@@ -108,6 +108,8 @@ jobs:
           }
       - name: Verify packaged Python dependencies
         run: poetry run python tools/verify_flet_bundle.py --site-packages build/site-packages
+      - name: Verify packaged locale catalogs
+        run: poetry run python tools/verify_locale_bundle.py
       - name: Build Windows installer and checksum
         run: |
           ./.github/scripts/build-installer.ps1
