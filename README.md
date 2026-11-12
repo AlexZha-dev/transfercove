@@ -12,7 +12,7 @@ The computer receives files. A phone, tablet, or another computer sends them fro
 
 <br>
 
-![Version](https://img.shields.io/badge/version-0.3.2-1f8f55?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.3.3-1f8f55?style=flat-square)
 ![Python](https://img.shields.io/badge/python-3.14%2B-3776AB?style=flat-square&logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-111827?style=flat-square)
 
@@ -222,7 +222,7 @@ poetry run python tools/export_brand.py
 Build the Windows desktop package on Windows:
 
 ```bash
-poetry run flet build windows --yes --build-version 0.3.2
+poetry run flet build windows --yes --build-version 0.3.3
 ```
 
 Flet reads the application icon from `assets/icon.png`; the build entry point, artifact name, and local-data exclusions are configured in `pyproject.toml`. A Windows build also requires Flutter and the C++ desktop tools from Visual Studio. See the [Flet Windows publishing guide](https://flet.dev/docs/publish/windows/) for the platform prerequisites.
