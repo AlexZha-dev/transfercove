@@ -6,11 +6,12 @@ import tempfile
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 from uuid import UUID, uuid4
 
 from starlette.datastructures import UploadFile
 
-from app.services.disk_space_service import DiskSpaceGuard
+from app.services.disk_space_service import DiskSpaceGuard, WritableBinaryFile
 
 logger = logging.getLogger(__name__)
 
@@ -85,10 +86,11 @@ class FileService:
                 dir=self.storage_dir,
                 delete=False,
             ) as output:
+                writable_output = cast(WritableBinaryFile, output)
                 temporary_path = Path(output.name)
                 while chunk := await upload.read(1024 * 1024):
                     await disk_guard.write(
-                        output, self.storage_dir, reserve_bytes, chunk
+                        writable_output, self.storage_dir, reserve_bytes, chunk
                     )
                     size += len(chunk)
 

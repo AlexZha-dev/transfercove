@@ -26,8 +26,8 @@ class DiskSpaceError(RuntimeError):
 async def run_disk_io(operation: Callable[..., T], *args) -> T:
     """Finish in-flight I/O before cancellation lets the caller close its file."""
     cancellation = None
+    task = asyncio.create_task(asyncio.to_thread(operation, *args))
     with CancelScope(shield=True):
-        task = asyncio.create_task(asyncio.to_thread(operation, *args))
         while not task.done():
             try:
                 await asyncio.shield(task)
