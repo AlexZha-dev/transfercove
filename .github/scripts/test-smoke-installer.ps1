@@ -6,6 +6,9 @@ $global:transferCoveSmokeFixture = [pscustomobject]@{ Scenario = ''; Installed =
 
 function Test-Path {
     param([string]$LiteralPath, [string]$PathType)
+    if ($global:transferCoveSmokeFixture.Scenario -eq 'empty-console' -and $LiteralPath -like '*console.log') {
+        return $true
+    }
     if ($LiteralPath -like 'HKCU:*') {
         return $global:transferCoveSmokeFixture.Installed -and $global:transferCoveSmokeFixture.Scenario -eq 'wrong-scope'
     }
@@ -30,7 +33,12 @@ function Remove-Item {
 }
 
 function Start-Process {
-    param([string]$FilePath, [string[]]$ArgumentList, [switch]$PassThru, [string]$WindowStyle)
+    param([string]$FilePath, [string[]]$ArgumentList, [switch]$PassThru, [string]$WindowStyle, [string]$WorkingDirectory)
+    if ($global:transferCoveSmokeFixture.Scenario -eq 'empty-console') {
+        $process = [pscustomobject]@{ HasExited = $false; Id = 1 }
+        $process | Add-Member -MemberType ScriptMethod -Name Refresh -Value { }
+        return $process
+    }
     if ($FilePath -like '*unins000.exe') {
         $global:transferCoveSmokeFixture.UninstallCalls++
         $global:transferCoveSmokeFixture.Installed = $false
@@ -68,6 +76,39 @@ foreach ($case in @(
     }
     Write-Output "Passed: $($case.Name)"
 }
+
+# Exercise the real readiness loop while Flet has created an empty console log.
+$tokens = $null
+$parseErrors = $null
+$ast = [System.Management.Automation.Language.Parser]::ParseFile($smokeScript, [ref]$tokens, [ref]$parseErrors)
+if ($parseErrors.Count -ne 0) { throw 'Could not parse smoke-installer.ps1' }
+$startup = $ast.Find({
+    param($node)
+    $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Start-SmokeApplication'
+}, $true)
+if ($null -eq $startup) { throw 'Start-SmokeApplication was not found' }
+Invoke-Expression $startup.Extent.Text
+
+function Clear-Content { param([string]$LiteralPath) }
+function Copy-Item { param([string]$LiteralPath, [string]$Destination, [switch]$Force) }
+function Start-Sleep { param([int]$Milliseconds, [int]$Seconds) }
+function Get-Content {
+    param([string]$LiteralPath, [switch]$Raw)
+    $script:consoleReads++
+    if ($script:consoleReads -gt 1) { return 'TransferCove desktop initialized version=0.3.0' }
+}
+function Read-ApplicationSettings { return [pscustomobject]@{ version = '0.3.0' } }
+
+$global:transferCoveSmokeFixture.Scenario = 'empty-console'
+$script:consoleReads = 0
+$installDirectory = $PSScriptRoot
+$testRoot = $PSScriptRoot
+$consoleLog = Join-Path $testRoot 'console.log'
+$logs = $testRoot
+$StartupTimeoutSeconds = 1
+Start-SmokeApplication '0.3.0' $false 'initial'
+if ($script:consoleReads -lt 3) { throw 'Readiness did not wait for the startup marker' }
+Write-Output 'Passed: empty-console'
 
 # Version validation must fail before any installer process is started.
 foreach ($case in @(

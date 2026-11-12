@@ -102,6 +102,7 @@ function Start-SmokeApplication([string]$Version, [bool]$Legacy, [string]$Stage)
         $content = ''
         if (Test-Path -LiteralPath $consoleLog) {
             $content = [string](Get-Content -LiteralPath $consoleLog -Raw)
+            if ($null -eq $content) { $content = '' }
             if ($content -match 'Traceback \(most recent call last\)|Unhandled exception') {
                 throw 'Installed application reported an exception'
             }
