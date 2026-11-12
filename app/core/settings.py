@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 
 from pydantic import BaseModel, Field
@@ -21,10 +22,16 @@ def is_packaged_build() -> bool:
     return bool(os.getenv("FLET_APP_CONSOLE"))
 
 
+def is_windows_packaged_build() -> bool:
+    """Return whether this is the installed Windows desktop application."""
+
+    return sys.platform == "win32" and is_packaged_build()
+
+
 class AppConfig(BaseModel):
     title: str = "TransferCove"
     description: str = "Application for sharing files over a local network"
-    version: str = "0.2.3"
+    version: str = "0.3.0"
     debug: bool = False
 
 

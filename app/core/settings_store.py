@@ -1,9 +1,11 @@
+import datetime
 import os
 import shutil
 from pathlib import Path
 
 from app.core.db import Database
 from app.core.settings import Settings
+from app.models.update_check import UpdateCheckRecord
 from app.services.settings_service import SettingsService
 
 
@@ -55,10 +57,24 @@ class SettingsStore:
         self.service = SettingsService(self.database)
 
     async def load(self, fallback: Settings) -> Settings:
+        await self.database.create_table(UpdateCheckRecord.__table__)
         return await self.service.initialize(fallback)
 
     async def save(self, settings: Settings) -> Settings:
         return await self.service.save(settings)
+
+    async def get_last_update_check(self) -> datetime.datetime | None:
+        async with self.database.session() as session:
+            record = await session.get(UpdateCheckRecord, 1)
+            return record.last_checked_at if record is not None else None
+
+    async def set_last_update_check(self, checked_at: datetime.datetime) -> None:
+        async with self.database.transaction() as session:
+            record = await session.get(UpdateCheckRecord, 1)
+            if record is None:
+                session.add(UpdateCheckRecord(id=1, last_checked_at=checked_at))
+            else:
+                record.last_checked_at = checked_at
 
     async def close(self) -> None:
         await self.database.dispose()

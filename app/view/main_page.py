@@ -1,3 +1,6 @@
+import asyncio
+import datetime
+import logging
 import webbrowser
 from typing import Protocol
 
@@ -9,6 +12,7 @@ from app.core.security import (
     SECURITY_NOTICE_PREFERENCE_KEY,
     SECURITY_NOTICE_TITLE,
 )
+from app.core.settings import is_windows_packaged_build
 from app.core.theme import (
     ASSETS_DIR,
     COLORS,
@@ -18,8 +22,19 @@ from app.core.theme import (
     eyebrow,
 )
 from app.server.manager import ServerState
+from app.services.update_service import (
+    UpdateOperation,
+    UpdateService,
+    UpdateServiceError,
+    UpdateViewState,
+    VerifiedInstaller,
+    should_check_for_updates,
+)
+from app.services.windows_update_installer import InstallerFileError, verify_and_launch
 from app.view.home_page import HomePage
 from app.view.settings_page import SettingsPage
+
+logger = logging.getLogger(__name__)
 
 
 class View(Protocol):
@@ -41,6 +56,11 @@ class MainPage:
         self.current_view: View | None = None
         self.active_route = "home"
         self._start_after_security_acknowledgement = False
+        self.update_state = UpdateViewState(supported=is_windows_packaged_build())
+        self.update_service: UpdateService | None = None
+        self._update_check_task: asyncio.Task | None = None
+        self._closing = False
+        self._update_confirmation: tuple[object, VerifiedInstaller] | None = None
         self.route_title = ft.Text("Dashboard", size=13, color=COLORS["text"])
         self.connection_text = ft.Text(size=11, weight=ft.FontWeight.W_600)
         self.connection_dot = ft.Container(width=6, height=6, border_radius=3)
@@ -109,10 +129,22 @@ class MainPage:
         self.page.window.min_height = 600
         self.page.window.icon = str(ASSETS_DIR / "icon.ico")
         self.page.on_resize = self.resize
+        self.page.window.on_event = self.on_window_event
         self.page.services.append(self.file_picker)
         self.page.services.append(self.security_preferences)
 
         await self.controller.initialize()
+        if self.update_state.supported:
+            try:
+                self.update_service = UpdateService(
+                    self.controller.settings.app.version
+                )
+            except ValueError:
+                logger.exception("The installed application version is invalid")
+                self.update_state.status = (
+                    "Update checks are unavailable for this version."
+                )
+                self.update_state.is_error = True
         self.controller.subscribe(self.refresh_current_view)
         self.page.add(
             ft.Row(
@@ -127,6 +159,11 @@ class MainPage:
         )
         self.show_home()
         self.resize()
+
+        if self.update_state.supported and self.update_service is not None:
+            self._update_check_task = asyncio.create_task(
+                self.check_for_updates(manual=False)
+            )
 
         if await self.security_notice_was_acknowledged():
             await self.start_server_automatically()
@@ -345,7 +382,13 @@ class MainPage:
         self.dispose_current_view()
         self.active_route = "settings"
         self.current_view = SettingsPage(
-            self.controller, self.show_home, self.page, self.file_picker
+            self.controller,
+            self.show_home,
+            self.page,
+            self.file_picker,
+            self.update_state,
+            self.check_for_updates,
+            self.update_action,
         )
         self.mount_view()
 
@@ -390,7 +433,223 @@ class MainPage:
         if self.current_view is not None:
             self.current_view.dispose()
 
+    def _notify_updates(self) -> None:
+        if not self._closing:
+            self.controller.notify()
+
+    def _begin_update_operation(self, operation: UpdateOperation) -> bool:
+        # All event handlers run on the UI loop. Claim the operation before any await.
+        if (
+            self._closing
+            or not self.update_state.supported
+            or self.update_service is None
+            or self.update_state.busy
+        ):
+            return False
+        self.update_state.operation = operation
+        return True
+
+    def _finish_update_operation(self) -> None:
+        if not self._closing:
+            self.update_state.operation = UpdateOperation.IDLE
+            self._notify_updates()
+
+    async def check_for_updates(self, _=None, *, manual: bool = True) -> None:
+        if not self._begin_update_operation(UpdateOperation.CHECKING):
+            return
+        self.update_state.status = "Checking GitHub for stable releases..."
+        self.update_state.is_error = False
+        self._notify_updates()
+        try:
+            now = datetime.datetime.now(datetime.UTC)
+            if not manual:
+                last_checked_at = (
+                    await self.controller.settings_store.get_last_update_check()
+                )
+                if self._closing:
+                    return
+                if not should_check_for_updates(last_checked_at, now):
+                    self.update_state.status = (
+                        "Updates were checked within the last 24 hours. "
+                        "Use Check for updates to retry now."
+                    )
+                    return
+            await self.controller.settings_store.set_last_update_check(now)
+            if self._closing:
+                return
+            self.update_state.release = None
+            self.update_state.installer = None
+            release = await self.update_service.check_for_update()
+            if self._closing:
+                return
+            self.update_state.release = release
+            self.update_state.status = (
+                "A stable update is available."
+                if release is not None
+                else "No newer stable release is available. "
+                f"Current version: {self.controller.settings.app.version}."
+            )
+        except UpdateServiceError as error:
+            if not self._closing:
+                self.update_state.status = str(error)
+                self.update_state.is_error = True
+        except Exception:
+            logger.exception("Could not check for application updates")
+            if not self._closing:
+                self.update_state.status = (
+                    "The update check failed. Use Check for updates to retry."
+                )
+                self.update_state.is_error = True
+        finally:
+            self._finish_update_operation()
+
+    async def update_action(self, _) -> None:
+        release = self.update_state.release
+        if release is None:
+            return
+        if self.update_state.installer is not None:
+            self.show_update_install_confirmation()
+            return
+        if not self._begin_update_operation(UpdateOperation.DOWNLOADING):
+            return
+        self.update_state.status = f"Downloading version {release.version}..."
+        self.update_state.is_error = False
+        self._notify_updates()
+        try:
+            installer = await self.update_service.download_and_verify(release)
+            if self._closing:
+                return
+            self.update_state.installer = installer
+            self.update_state.status = (
+                f"Version {release.version} downloaded and verified."
+            )
+        except UpdateServiceError as error:
+            if not self._closing:
+                self.update_state.status = str(error)
+                self.update_state.is_error = True
+        except Exception:
+            logger.exception("Could not download an application update")
+            if not self._closing:
+                self.update_state.status = (
+                    "The update download failed. Retry the download."
+                )
+                self.update_state.is_error = True
+        finally:
+            self._finish_update_operation()
+
+    def show_update_install_confirmation(self) -> None:
+        release = self.update_state.release
+        installer = self.update_state.installer
+        if release is None or installer is None or installer.version != release.version:
+            return
+        if not self._begin_update_operation(UpdateOperation.CONFIRMING):
+            return
+        token = object()
+        self._update_confirmation = (token, installer)
+
+        async def confirm(event):
+            await self.confirm_update_install(event, token=token)
+
+        dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text("Install TransferCove update?"),
+            content=ft.Text(
+                f"TransferCove will verify the version {installer.version} installer "
+                "again, start setup, and close. Setup will keep your current "
+                "installation location and install mode."
+            ),
+            actions=[
+                ft.TextButton(
+                    "Cancel", on_click=lambda _: self.cancel_update_install(token)
+                ),
+                ft.Button(
+                    "Close and install",
+                    style=button_style(primary=True),
+                    on_click=confirm,
+                ),
+            ],
+            on_dismiss=lambda _: self.cancel_update_install(token, dismissed=True),
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        self._notify_updates()
+        try:
+            self.page.show_dialog(dialog)
+        except Exception:
+            self._update_confirmation = None
+            self._finish_update_operation()
+            raise
+
+    def cancel_update_install(self, token: object, *, dismissed: bool = False) -> None:
+        confirmation = self._update_confirmation
+        if (
+            self._closing
+            or confirmation is None
+            or confirmation[0] is not token
+            or self.update_state.operation != UpdateOperation.CONFIRMING
+        ):
+            return
+        self._update_confirmation = None
+        if not dismissed:
+            self.page.pop_dialog()
+        self._finish_update_operation()
+
+    async def confirm_update_install(self, _, *, token: object) -> None:
+        confirmation = self._update_confirmation
+        if (
+            self._closing
+            or confirmation is None
+            or confirmation[0] is not token
+            or self.update_state.operation != UpdateOperation.CONFIRMING
+        ):
+            return
+        installer = confirmation[1]
+        self._update_confirmation = None
+        self.update_state.operation = UpdateOperation.INSTALLING
+        self.page.pop_dialog()
+        self.update_state.status = "Verifying the installer before launch..."
+        self.update_state.is_error = False
+        self._notify_updates()
+        try:
+            await verify_and_launch(installer)
+        except InstallerFileError as error:
+            if not self._closing:
+                self.update_state.installer = None
+                self.update_state.status = str(error)
+                self.update_state.is_error = True
+        except UpdateServiceError as error:
+            if not self._closing:
+                self.update_state.status = str(error)
+                self.update_state.is_error = True
+        except Exception:
+            logger.exception("Could not install the application update")
+            if not self._closing:
+                self.update_state.status = (
+                    "The installer could not be started. Retry the update."
+                )
+                self.update_state.is_error = True
+        else:
+            if not self._closing:
+                try:
+                    await self.close()
+                except Exception:
+                    logger.exception(
+                        "Could not fully stop TransferCove before the update"
+                    )
+                await self.page.window.close()
+        finally:
+            self._finish_update_operation()
+
+    async def on_window_event(self, event: ft.WindowEvent) -> None:
+        if event.type == ft.WindowEventType.CLOSE:
+            await self.close()
+
     async def close(self) -> None:
+        if self._closing:
+            return
+        self._closing = True
+        self._update_confirmation = None
+        if self._update_check_task is not None and not self._update_check_task.done():
+            self._update_check_task.cancel()
         await self.controller.close()
 
 
@@ -398,7 +657,10 @@ async def main(page: ft.Page) -> None:
     application = MainPage(page)
     await application.initialize()
     # The installed Flet application captures stdout in console.log.
-    print("TransferCove desktop initialized", flush=True)
+    print(
+        f"TransferCove desktop initialized version={application.controller.settings.app.version}",
+        flush=True,
+    )
 
 
 def run() -> None:

@@ -1,6 +1,9 @@
+import asyncio
+import datetime
 from pathlib import Path
 
-from app.core.settings_store import migrate_legacy_data
+from app.core.settings import Settings
+from app.core.settings_store import SettingsStore, migrate_legacy_data
 
 
 def test_migrate_legacy_data_copies_existing_windows_data(
@@ -40,3 +43,27 @@ def test_migrate_legacy_data_does_not_overwrite_new_data(
     migrate_legacy_data(target_dir)
 
     assert (target_dir / "desktop-settings.db").read_bytes() == b"new"
+
+
+def test_update_check_time_persists_separately_from_app_preferences(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("FLET_APP_STORAGE_DATA", str(tmp_path / "app-data"))
+    store = SettingsStore()
+    checked_at = datetime.datetime(2026, 1, 2, tzinfo=datetime.UTC)
+
+    async def scenario() -> datetime.datetime | None:
+        try:
+            await store.load(Settings())
+            assert await store.get_last_update_check() is None
+            await store.set_last_update_check(checked_at)
+            return await store.get_last_update_check()
+        finally:
+            await store.close()
+
+    saved = asyncio.run(scenario())
+
+    assert saved is not None
+    if saved.tzinfo is None:
+        saved = saved.replace(tzinfo=datetime.UTC)
+    assert saved == checked_at

@@ -10,6 +10,7 @@ from app.core.settings import (
     Settings,
     UvicornConfig,
     is_packaged_build,
+    is_windows_packaged_build,
     resolve_storage_path,
 )
 
@@ -36,6 +37,17 @@ def test_packaged_build_detection_uses_flet_console_variable(
 
     monkeypatch.setenv("FLET_APP_CONSOLE", "C:/Temp/TransferCove/console.log")
     assert is_packaged_build() is True
+
+
+def test_update_checks_are_limited_to_packaged_windows_builds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("app.core.settings.sys.platform", "win32")
+    monkeypatch.setenv("FLET_APP_CONSOLE", "C:/Temp/TransferCove/console.log")
+    assert is_windows_packaged_build() is True
+
+    monkeypatch.setattr("app.core.settings.sys.platform", "linux")
+    assert is_windows_packaged_build() is False
 
 
 def test_settings_builds_nested_configuration() -> None:
