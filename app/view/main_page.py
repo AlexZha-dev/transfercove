@@ -150,7 +150,9 @@ class MainPage(LocalizedView):
                 )
                 self.update_state.is_error = True
         self.controller.subscribe(self.refresh_current_view)
-        self.main_column = ft.Column([self.topbar, self.content], spacing=0, expand=True)
+        self.main_column = ft.Column(
+            [self.topbar, self.content], spacing=0, expand=True
+        )
         self.layout = ft.Row(
             controls=[
                 self.sidebar,
