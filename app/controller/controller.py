@@ -1,9 +1,12 @@
+import logging
 from collections.abc import Callable
 
 from app.core.network import get_lan_ipv4
 from app.core.settings import Settings
 from app.core.settings_store import SettingsStore
 from app.server.manager import ServerError, ServerManager, ServerState
+
+logger = logging.getLogger(__name__)
 
 
 class AppController:
@@ -14,7 +17,7 @@ class AppController:
 
         self.initialized = False
         self.listeners: list[Callable[[], None]] = []
-        self.last_error: str | None = None
+        self.last_error: ServerError | None = None
 
     async def initialize(self) -> None:
         self.settings = await self.settings_store.load(self.settings)
@@ -64,7 +67,8 @@ class AppController:
         try:
             await self.server_manager.start(self.settings)
         except ServerError as error:
-            self.last_error = str(error)
+            logger.exception("Could not start server")
+            self.last_error = error
             self.notify()
             return False
 
@@ -78,7 +82,12 @@ class AppController:
         self.notify()
 
     async def save_settings(self, settings: Settings) -> bool:
-        restart_required = self.server_running
+        only_language_changed = (
+            settings.desktop.language != self.settings.desktop.language
+            and settings.model_dump(exclude={"desktop": {"language"}})
+            == self.settings.model_dump(exclude={"desktop": {"language"}})
+        )
+        restart_required = self.server_running and not only_language_changed
         if restart_required:
             await self.stop_server()
 

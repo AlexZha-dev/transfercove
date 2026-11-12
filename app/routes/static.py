@@ -4,11 +4,19 @@ from fastapi import APIRouter, FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.core.localization import load_catalogs
+
 static_router = APIRouter()
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 STATIC_DIR = BASE_DIR / "static"
 ASSETS_DIR = BASE_DIR.parent / "assets"
+
+
+@static_router.get("/locales", include_in_schema=False)
+async def locales():
+    """Expose the same discovered catalogs used by the desktop interface."""
+    return load_catalogs()
 
 
 @static_router.get("/")

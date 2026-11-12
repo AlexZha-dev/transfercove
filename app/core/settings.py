@@ -31,7 +31,7 @@ def is_windows_packaged_build() -> bool:
 class AppConfig(BaseModel):
     title: str = "TransferCove"
     description: str = "Application for sharing files over a local network"
-    version: str = "0.3.0"
+    version: str = "0.3.2"
     debug: bool = False
 
 

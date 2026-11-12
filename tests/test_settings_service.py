@@ -37,7 +37,9 @@ def test_settings_service_initializes_and_persists_preferences(tmp_path: Path) -
                 "transmitter": first.transmitter.model_copy(
                     update={"database_url": "sqlite+aiosqlite:///saved.db"}
                 ),
-                "desktop": first.desktop.model_copy(update={"auto_start": True}),
+                "desktop": first.desktop.model_copy(
+                    update={"auto_start": True, "language": "ru"}
+                ),
             }
         )
         await service.save(changed)
@@ -51,6 +53,7 @@ def test_settings_service_initializes_and_persists_preferences(tmp_path: Path) -
     assert loaded.app.title == "Saved title"
     assert loaded.app.version == "0.3.0"
     assert loaded.desktop.auto_start is True
+    assert loaded.desktop.language == "ru"
     assert loaded.uvicorn.log_level == "warning"
     assert loaded.transmitter.database_url == "sqlite+aiosqlite:///first.db"
 

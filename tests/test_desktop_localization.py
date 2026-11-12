@@ -1,0 +1,212 @@
+import asyncio
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock
+
+import pytest
+
+from app.core.settings import Settings
+from app.server.manager import ServerError, ServerErrorCode, ServerState
+from app.view.main_page import MainPage
+from app.view.settings_page import SettingsPage
+
+
+def make_view(monkeypatch, language="en", *, server_started=True):
+    settings = Settings()
+    settings.desktop.language = language
+    controller = SimpleNamespace(
+        settings=settings,
+        initialized=True,
+        server_state=ServerState.STOPPED,
+        server_running=False,
+        last_error=None,
+        server_url="http://127.0.0.1:8000/",
+        advertised_host="127.0.0.1",
+        subscribe=Mock(),
+        initialize=AsyncMock(),
+    )
+
+    async def save(saved):
+        controller.settings = saved
+        return server_started
+
+    controller.save_settings = AsyncMock(side_effect=save)
+    page = SimpleNamespace(
+        window=SimpleNamespace(),
+        services=[],
+        add=Mock(),
+        update=Mock(),
+        show_dialog=Mock(),
+        width=1200,
+        web=False,
+    )
+    monkeypatch.setattr("app.view.main_page.AppController", lambda: controller)
+    view = MainPage(page)
+    view.security_notice_was_acknowledged = AsyncMock(return_value=True)
+    view.start_server_automatically = AsyncMock()
+    asyncio.run(view.initialize())
+    return view, controller
+
+
+@pytest.mark.parametrize("server_started", [True, False])
+def test_saved_language_updates_desktop_immediately(monkeypatch, server_started):
+    view, controller = make_view(monkeypatch, server_started=server_started)
+    view.show_settings()
+    old_settings = view.current_view
+    old_settings.language.value = "ru"
+    asyncio.run(old_settings.save(None))
+
+    assert controller.settings.desktop.language == "ru"
+    assert view.active_route == "settings"
+    assert isinstance(view.current_view, SettingsPage)
+    assert view.route_title.value == "Настройки"
+    assert view.current_view.save_button.content == "Сохранить изменения"
+    assert view.current_view.message.value == (
+        "Настройки сохранены"
+        if server_started
+        else "Настройки сохранены, но сервер не запустился"
+    )
+    assert len(view.page.services) == 2
+    view.show_home()
+    assert view.route_title.value == "Главная"
+    assert view.current_view.server_button.content == "Запустить сервер"
+    view.show_settings()
+    view.current_view.language.value = "en"
+    asyncio.run(view.current_view.save(None))
+    assert view.route_title.value == "Settings"
+    assert controller.settings.desktop.language == "en"
+
+
+def test_initial_language_and_unknown_locale(monkeypatch):
+    view, _ = make_view(monkeypatch, "ru")
+    assert view.route_title.value == "Главная"
+    view.show_security_notice()
+    assert (
+        view.page.show_dialog.call_args.args[0].title.value
+        == "Предупреждение безопасности"
+    )
+    view._set_update_status("update_downloading", version="1.2.3")
+    view.show_settings()
+    assert view.current_view.update_status.value == "Загрузка версии 1.2.3..."
+    view.current_view.language.value = "en"
+    asyncio.run(view.current_view.save(None))
+    assert view.current_view.update_status.value == "Downloading version 1.2.3..."
+    view, _ = make_view(monkeypatch, "not-a-language")
+    assert view.route_title.value == "Dashboard"
+
+
+@pytest.mark.parametrize(
+    ("code", "expected"),
+    [
+        (ServerErrorCode.STORAGE_UNAVAILABLE, "Папка хранения недоступна"),
+        (ServerErrorCode.STARTUP_TIMEOUT, "Сервер не запустился вовремя"),
+        (ServerErrorCode.UNKNOWN, "Не удалось запустить сервер"),
+    ],
+)
+def test_server_error_uses_localized_structured_reason(monkeypatch, code, expected):
+    view, controller = make_view(monkeypatch, "ru")
+    controller.server_state = ServerState.ERROR
+    controller.last_error = ServerError("technical details", code)
+    view.current_view.refresh()
+    assert expected in view.current_view.error.value
+    assert "technical details" not in view.current_view.error.value
+
+
+def test_invalid_settings_do_not_apply_language(monkeypatch):
+    view, controller = make_view(monkeypatch)
+    view.show_settings()
+    settings = view.current_view
+    settings.language.value = "ru"
+    settings.port.value = "invalid"
+    asyncio.run(settings.save(None))
+    assert controller.settings.desktop.language == "en"
+    assert view.current_view is settings
+    assert view.route_title.value == "Settings"
+    assert "Port: Enter a whole number." in settings.message.value
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "expected"),
+    [
+        ("port", "65536", "65535"),
+        ("port", "0", "1"),
+        ("max_file_mib", "0", "1"),
+        ("max_file_mib", "1048577", "1048576"),
+        ("max_concurrent", "101", "100"),
+        ("max_concurrent", "0", "1"),
+        ("reserve_mib", "-1", "0"),
+        ("reserve_mib", "1048577", "1048576"),
+        ("idle_timeout", "86401", "86400"),
+        ("idle_timeout", "0", "1"),
+    ],
+)
+def test_invalid_numeric_ranges_identify_the_field(monkeypatch, field, value, expected):
+    view, controller = make_view(monkeypatch)
+    view.show_settings()
+    settings = view.current_view
+    control = getattr(settings, field)
+    control.value = value
+    asyncio.run(settings.save(None))
+    assert control.label in settings.message.value
+    assert expected in settings.message.value
+    controller.save_settings.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    "field", ["port", "max_file_mib", "max_concurrent", "reserve_mib", "idle_timeout"]
+)
+def test_invalid_numeric_inputs_identify_the_field(monkeypatch, field):
+    view, controller = make_view(monkeypatch)
+    view.show_settings()
+    settings = view.current_view
+    control = getattr(settings, field)
+    control.value = "invalid"
+    asyncio.run(settings.save(None))
+    assert f"{control.label}: Enter a whole number." in settings.message.value
+    controller.save_settings.assert_not_awaited()
+
+
+def test_multiple_settings_errors_are_translated_together(monkeypatch):
+    view, controller = make_view(monkeypatch, "ru")
+    view.show_settings()
+    settings = view.current_view
+    settings.port.value = "abc"
+    settings.max_concurrent.value = "0"
+    settings.language.value = "en"
+    asyncio.run(settings.save(None))
+    assert "Порт: Введите целое число." in settings.message.value
+    assert (
+        "Одновременных загрузок: Значение должно быть не меньше 1."
+        in settings.message.value
+    )
+    assert controller.settings.desktop.language == "ru"
+    controller.save_settings.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    ("language", "dashboard", "settings_label", "save_label"),
+    [
+        ("es", "Panel", "Configuración", "Guardar cambios"),
+        ("pt", "Painel", "Configurações", "Salvar alterações"),
+        ("de", "Übersicht", "Einstellungen", "Änderungen speichern"),
+        ("fr", "Tableau de bord", "Paramètres", "Enregistrer les modifications"),
+        ("uk", "Головна", "Налаштування", "Зберегти зміни"),
+    ],
+)
+def test_added_language_is_selectable_and_applies_after_save(
+    monkeypatch, language, dashboard, settings_label, save_label
+):
+    view, controller = make_view(monkeypatch)
+    view.show_settings()
+    settings = view.current_view
+    assert language in {option.key for option in settings.language.options}
+    settings.language.value = language
+    asyncio.run(settings.save(None))
+
+    assert controller.settings.desktop.language == language
+    assert view.route_title.value == settings_label
+    assert view.current_view.save_button.content == save_label
+    view.show_home()
+    assert view.route_title.value == dashboard
+
+    restarted, _ = make_view(monkeypatch, language)
+    assert restarted.route_title.value == dashboard

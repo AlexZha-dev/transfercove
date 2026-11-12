@@ -8,7 +8,7 @@ import os
 import re
 import tempfile
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum
 from pathlib import Path
@@ -63,11 +63,12 @@ class UpdateOperation(StrEnum):
 @dataclass
 class UpdateViewState:
     supported: bool
-    status: str = "Update check will run in the background."
     is_error: bool = False
     operation: UpdateOperation = UpdateOperation.IDLE
     release: UpdateRelease | None = None
     installer: VerifiedInstaller | None = None
+    status_key: str = "update_background"
+    status_values: dict[str, object] = field(default_factory=dict)
 
     @property
     def busy(self) -> bool:
