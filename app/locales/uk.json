@@ -2,6 +2,8 @@
   "id": "uk",
   "name": "Українська",
   "desktop": {
+    "server_error_storage": "Папка зберігання недоступна. Перевірте шлях і права доступу.",
+    "server_error_timeout": "Сервер не запустився вчасно. Перевірте налаштування мережі та спробуйте ще раз.",
     "validation_integer": "Введіть ціле число.",
     "validation_ge": "Значення має бути не менше {{value}}.",
     "validation_le": "Значення має бути не більше {{value}}.",
@@ -51,7 +53,7 @@
     "waiting_for_your_server_to_finish_shutting_2070bb": "Очікування завершення роботи сервера.",
     "needs_attention_c1ebc7": "Потрібна увага",
     "let_s_try_that_again_5d2389": "Спробуймо ще раз.",
-    "the_server_could_not_start_check_the_detai_0f2c95": "Не вдалося запустити сервер. Перевірте наведені нижче відомості або налаштування.",
+    "the_server_could_not_start_check_the_detai_0f2c95": "Не вдалося запустити сервер. Перевірте повідомлення нижче та налаштування.",
     "offline_a17947": "Поза мережею",
     "ready_when_you_are_182bf2": "Усе готово до початку.",
     "start_your_server_and_give_your_files_a_pl_89a83c": "Запустіть сервер, щоб отримувати файли.",

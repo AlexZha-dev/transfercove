@@ -12,7 +12,7 @@ from app.core.theme import (
     panel,
     section_title,
 )
-from app.server.manager import ServerState
+from app.server.manager import ServerErrorCode, ServerState
 from app.view.localized import LocalizedView
 
 
@@ -594,9 +594,16 @@ class HomePage(LocalizedView):
             else label.upper()
         )
         self.signal_caption.color = color
-        self.error.value = (
-            self.tr("server_error_details") if self.controller.last_error else ""
+        error = self.controller.last_error
+        error_key = (
+            {
+                ServerErrorCode.STORAGE_UNAVAILABLE: "server_error_storage",
+                ServerErrorCode.STARTUP_TIMEOUT: "server_error_timeout",
+            }.get(error.code, "server_error_details")
+            if error
+            else "server_error_details"
         )
+        self.error.value = self.tr(error_key) if error else ""
         self.error.visible = state == ServerState.ERROR and bool(
             self.controller.last_error
         )

@@ -15,9 +15,48 @@ import httpx
 import pytest
 
 from app.core.settings import Settings, TransmitterSettings, UvicornConfig
-from app.server.manager import ServerManager
+from app.server.manager import ServerError, ServerErrorCode, ServerManager, ServerState
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_storage_failure_retains_structured_cause(monkeypatch, tmp_path):
+    def fail(*args, **kwargs):
+        raise PermissionError("storage denied")
+
+    monkeypatch.setattr("app.server.manager.create_app", fail)
+
+    async def scenario():
+        manager = ServerManager()
+        with pytest.raises(ServerError) as caught:
+            await manager.start(
+                Settings(transmitter=TransmitterSettings(storage_dir=tmp_path))
+            )
+        assert caught.value.code == ServerErrorCode.STORAGE_UNAVAILABLE
+        assert isinstance(caught.value.__cause__, PermissionError)
+        assert manager.state == ServerState.ERROR
+
+    asyncio.run(scenario())
+
+
+def test_occupied_port_does_not_exit_the_desktop_process(tmp_path):
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        listener.listen()
+        port = listener.getsockname()[1]
+
+        async def scenario():
+            manager = ServerManager(startup_timeout=2)
+            settings = Settings(
+                uvicorn=UvicornConfig(host="127.0.0.1", port=port),
+                transmitter=TransmitterSettings(storage_dir=tmp_path),
+            )
+            with pytest.raises(ServerError) as caught:
+                await manager.start(settings)
+            assert caught.value.code == ServerErrorCode.UNKNOWN
+            assert manager.state == ServerState.ERROR
+
+        asyncio.run(scenario())
 
 
 @pytest.mark.parametrize("history", ["legacy", "missing", "corrupt", "unavailable"])

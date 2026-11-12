@@ -17,7 +17,7 @@ class AppController:
 
         self.initialized = False
         self.listeners: list[Callable[[], None]] = []
-        self.last_error: str | None = None
+        self.last_error: ServerError | None = None
 
     async def initialize(self) -> None:
         self.settings = await self.settings_store.load(self.settings)
@@ -68,7 +68,7 @@ class AppController:
             await self.server_manager.start(self.settings)
         except ServerError as error:
             logger.exception("Could not start server")
-            self.last_error = str(error)
+            self.last_error = error
             self.notify()
             return False
 

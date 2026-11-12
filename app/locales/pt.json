@@ -2,6 +2,8 @@
   "id": "pt",
   "name": "Português",
   "desktop": {
+    "server_error_storage": "A pasta de armazenamento está indisponível. Verifique o caminho e as permissões.",
+    "server_error_timeout": "O servidor não iniciou a tempo. Verifique as configurações de rede e tente novamente.",
     "validation_integer": "Digite um número inteiro.",
     "validation_ge": "O valor deve ser no mínimo {{value}}.",
     "validation_le": "O valor deve ser no máximo {{value}}.",
@@ -51,7 +53,7 @@
     "waiting_for_your_server_to_finish_shutting_2070bb": "Aguardando o servidor encerrar.",
     "needs_attention_c1ebc7": "Precisa de atenção",
     "let_s_try_that_again_5d2389": "Vamos tentar novamente.",
-    "the_server_could_not_start_check_the_detai_0f2c95": "Não foi possível iniciar o servidor. Verifique os detalhes abaixo ou revise as configurações.",
+    "the_server_could_not_start_check_the_detai_0f2c95": "Não foi possível iniciar o servidor. Confira a mensagem abaixo e as configurações.",
     "offline_a17947": "Desconectado",
     "ready_when_you_are_182bf2": "Tudo pronto para começar.",
     "start_your_server_and_give_your_files_a_pl_89a83c": "Inicie o servidor para receber arquivos.",

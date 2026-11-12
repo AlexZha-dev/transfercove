@@ -2,6 +2,8 @@
   "id": "fr",
   "name": "Français",
   "desktop": {
+    "server_error_storage": "Le dossier de stockage est inaccessible. Vérifiez le chemin et les autorisations.",
+    "server_error_timeout": "Le serveur n’a pas démarré à temps. Vérifiez les paramètres réseau et réessayez.",
     "validation_integer": "Saisissez un nombre entier.",
     "validation_ge": "La valeur doit être au moins égale à {{value}}.",
     "validation_le": "La valeur doit être au plus égale à {{value}}.",
@@ -51,7 +53,7 @@
     "waiting_for_your_server_to_finish_shutting_2070bb": "En attente de l’arrêt du serveur.",
     "needs_attention_c1ebc7": "Attention requise",
     "let_s_try_that_again_5d2389": "Réessayons.",
-    "the_server_could_not_start_check_the_detai_0f2c95": "Impossible de démarrer le serveur. Consultez les détails ci-dessous ou vérifiez vos paramètres.",
+    "the_server_could_not_start_check_the_detai_0f2c95": "Impossible de démarrer le serveur. Consultez le message ci-dessous et les paramètres.",
     "offline_a17947": "Hors ligne",
     "ready_when_you_are_182bf2": "Prêt quand vous l’êtes.",
     "start_your_server_and_give_your_files_a_pl_89a83c": "Démarrez votre serveur pour recevoir des fichiers.",

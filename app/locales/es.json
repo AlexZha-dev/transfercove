@@ -2,6 +2,8 @@
   "id": "es",
   "name": "Español",
   "desktop": {
+    "server_error_storage": "La carpeta de almacenamiento no está disponible. Comprueba la ruta y los permisos.",
+    "server_error_timeout": "El servidor no se inició a tiempo. Comprueba la configuración de red y vuelve a intentarlo.",
     "validation_integer": "Introduce un número entero.",
     "validation_ge": "El valor debe ser al menos {{value}}.",
     "validation_le": "El valor debe ser como máximo {{value}}.",
@@ -51,7 +53,7 @@
     "waiting_for_your_server_to_finish_shutting_2070bb": "Esperando a que el servidor termine de detenerse.",
     "needs_attention_c1ebc7": "Requiere atención",
     "let_s_try_that_again_5d2389": "Intentémoslo de nuevo.",
-    "the_server_could_not_start_check_the_detai_0f2c95": "No se pudo iniciar el servidor. Comprueba los detalles siguientes o revisa la configuración.",
+    "the_server_could_not_start_check_the_detai_0f2c95": "No se pudo iniciar el servidor. Revisa el mensaje siguiente y la configuración.",
     "offline_a17947": "Sin conexión",
     "ready_when_you_are_182bf2": "Todo listo para empezar.",
     "start_your_server_and_give_your_files_a_pl_89a83c": "Inicia el servidor para recibir archivos.",

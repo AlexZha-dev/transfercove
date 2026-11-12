@@ -2,6 +2,8 @@
   "id": "ru",
   "name": "Русский",
   "desktop": {
+    "server_error_storage": "Папка хранения недоступна. Проверьте путь и права доступа.",
+    "server_error_timeout": "Сервер не запустился вовремя. Проверьте настройки сети и повторите попытку.",
     "validation_integer": "Введите целое число.",
     "validation_ge": "Значение должно быть не меньше {{value}}.",
     "validation_le": "Значение должно быть не больше {{value}}.",
@@ -51,7 +53,7 @@
     "waiting_for_your_server_to_finish_shutting_2070bb": "Ожидаем завершения работы сервера.",
     "needs_attention_c1ebc7": "Требуется внимание",
     "let_s_try_that_again_5d2389": "Попробуем ещё раз.",
-    "the_server_could_not_start_check_the_detai_0f2c95": "Не удалось запустить сервер. Проверьте сведения ниже или настройки.",
+    "the_server_could_not_start_check_the_detai_0f2c95": "Не удалось запустить сервер. Проверьте сообщение ниже и настройки.",
     "offline_a17947": "Не в сети",
     "ready_when_you_are_182bf2": "Всё готово к началу.",
     "start_your_server_and_give_your_files_a_pl_89a83c": "Запустите сервер для приёма файлов.",

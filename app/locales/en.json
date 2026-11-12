@@ -2,6 +2,8 @@
   "id": "en",
   "name": "English",
   "desktop": {
+    "server_error_storage": "The storage directory is unavailable. Check the path and access permissions.",
+    "server_error_timeout": "The server did not start in time. Check your network settings and try again.",
     "validation_integer": "Enter a whole number.",
     "validation_ge": "Must be at least {{value}}.",
     "validation_le": "Must be at most {{value}}.",
@@ -51,7 +53,7 @@
     "waiting_for_your_server_to_finish_shutting_2070bb": "Waiting for your server to finish shutting down.",
     "needs_attention_c1ebc7": "Needs attention",
     "let_s_try_that_again_5d2389": "Let’s try that again.",
-    "the_server_could_not_start_check_the_detai_0f2c95": "The server could not start. Check the details below or review your settings.",
+    "the_server_could_not_start_check_the_detai_0f2c95": "The server could not start. Review the message below and your settings.",
     "offline_a17947": "Offline",
     "ready_when_you_are_182bf2": "Ready when you are.",
     "start_your_server_and_give_your_files_a_pl_89a83c": "Start your server and give your files a place to land.",

@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 from app.core.settings import Settings
-from app.server.manager import ServerState
+from app.server.manager import ServerError, ServerErrorCode, ServerState
 from app.view.main_page import MainPage
 from app.view.settings_page import SettingsPage
 
@@ -89,6 +89,17 @@ def test_initial_language_and_unknown_locale(monkeypatch):
     assert view.current_view.update_status.value == "Загрузка версии 1.2.3..."
     view, _ = make_view(monkeypatch, "not-a-language")
     assert view.route_title.value == "Dashboard"
+
+
+def test_server_error_uses_localized_structured_reason(monkeypatch):
+    view, controller = make_view(monkeypatch, "ru")
+    controller.server_state = ServerState.ERROR
+    controller.last_error = ServerError(
+        "technical details", ServerErrorCode.STORAGE_UNAVAILABLE
+    )
+    view.current_view.refresh()
+    assert "Папка хранения недоступна" in view.current_view.error.value
+    assert "technical details" not in view.current_view.error.value
 
 
 def test_invalid_settings_do_not_apply_language(monkeypatch):

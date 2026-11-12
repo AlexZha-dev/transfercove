@@ -2,6 +2,8 @@
   "id": "de",
   "name": "Deutsch",
   "desktop": {
+    "server_error_storage": "Der Speicherordner ist nicht verfügbar. Prüfe den Pfad und die Zugriffsrechte.",
+    "server_error_timeout": "Der Server wurde nicht rechtzeitig gestartet. Prüfe die Netzwerkeinstellungen und versuche es erneut.",
     "validation_integer": "Gib eine ganze Zahl ein.",
     "validation_ge": "Der Wert muss mindestens {{value}} betragen.",
     "validation_le": "Der Wert darf höchstens {{value}} betragen.",
@@ -51,7 +53,7 @@
     "waiting_for_your_server_to_finish_shutting_2070bb": "Warte, bis der Server heruntergefahren ist.",
     "needs_attention_c1ebc7": "Aufmerksamkeit erforderlich",
     "let_s_try_that_again_5d2389": "Versuchen wir es noch einmal.",
-    "the_server_could_not_start_check_the_detai_0f2c95": "Der Server konnte nicht gestartet werden. Prüfe die folgenden Details oder die Einstellungen.",
+    "the_server_could_not_start_check_the_detai_0f2c95": "Der Server konnte nicht gestartet werden. Prüfe die folgende Meldung und die Einstellungen.",
     "offline_a17947": "Offline",
     "ready_when_you_are_182bf2": "Bereit, wenn du es bist.",
     "start_your_server_and_give_your_files_a_pl_89a83c": "Starte den Server, um Dateien zu empfangen.",
