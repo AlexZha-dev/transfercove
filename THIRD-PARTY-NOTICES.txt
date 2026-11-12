@@ -1,4 +1,4 @@
-TransferCove 0.2.3 — third-party notices
+TransferCove 0.3.3 — third-party notices
 ==========================================
 
 TransferCove is distributed under the MIT License. The project license is
@@ -16,8 +16,10 @@ alembic                 1.20.0    MIT                           https://pypi.org
 annotated-doc           0.0.5     MIT                           https://pypi.org/project/annotated-doc/
 annotated-types         0.8.0     MIT                           https://pypi.org/project/annotated-types/
 anyio                   4.15.1    MIT                           https://pypi.org/project/anyio/
-certifi                 2026.7.22  MPL-2.0                      https://pypi.org/project/certifi/
+babel                   2.18.0    BSD-3-Clause                  https://pypi.org/project/babel/
+certifi                 2026.10.23 MPL-2.0                      https://pypi.org/project/certifi/
 click                   8.5.0     BSD-3-Clause                  https://pypi.org/project/click/
+colorama                0.4.6     BSD-3-Clause                  https://pypi.org/project/colorama/
 fastapi                 0.141.1   MIT                           https://pypi.org/project/fastapi/
 flet                    0.86.5    Apache-2.0                    https://pypi.org/project/flet/
 greenlet                3.5.6     MIT AND PSF-2.0               https://pypi.org/project/greenlet/
@@ -27,16 +29,17 @@ httpx                   0.28.1    BSD-3-Clause                  https://pypi.org
 idna                    3.20      BSD-3-Clause                  https://pypi.org/project/idna/
 Mako                    1.4.3     MIT                           https://pypi.org/project/mako/
 MarkupSafe              3.0.3     BSD-3-Clause                  https://pypi.org/project/MarkupSafe/
-msgpack                 1.2.2     Apache-2.0                    https://pypi.org/project/msgpack/
-oauthlib                3.3.1     BSD-3-Clause                  https://pypi.org/project/oauthlib/
-pydantic                2.13.5    MIT                           https://pypi.org/project/pydantic/
-pydantic-core           2.46.5    MIT                           https://pypi.org/project/pydantic-core/
-pydantic-settings       2.15.0    MIT                           https://pypi.org/project/pydantic-settings/
+msgpack                 1.2.4     Apache-2.0                    https://pypi.org/project/msgpack/
+oauthlib                4.0.1     BSD-3-Clause                  https://pypi.org/project/oauthlib/
+pydantic                2.14.3    MIT                           https://pypi.org/project/pydantic/
+pydantic-core           2.50.4    MIT                           https://pypi.org/project/pydantic-core/
+pydantic-settings       2.16.2    MIT                           https://pypi.org/project/pydantic-settings/
 python-dotenv           1.2.3     BSD-3-Clause                  https://pypi.org/project/python-dotenv/
 python-multipart        0.0.32    Apache-2.0                    https://pypi.org/project/python-multipart/
+qrcode                  8.2       BSD-3-Clause                  https://pypi.org/project/qrcode/
 repath                  0.9.0     MIT                           https://pypi.org/project/repath/
 six                     1.17.0    MIT                           https://pypi.org/project/six/
-SQLAlchemy              2.0.54    MIT                           https://pypi.org/project/SQLAlchemy/
+SQLAlchemy              2.1.8     MIT                           https://pypi.org/project/SQLAlchemy/
 starlette               1.6.0     BSD-3-Clause                  https://pypi.org/project/starlette/
 typing-extensions       4.16.0    PSF-2.0                       https://pypi.org/project/typing-extensions/
 typing-inspection       0.4.4     MIT                           https://pypi.org/project/typing-inspection/
