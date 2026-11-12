@@ -124,7 +124,7 @@ jobs:
         env:
           INSTALLER_PATH: ${{ steps.installer.outputs.installer-path }}
         run: |
-          ./.github/scripts/smoke-installer.ps1 -InstallerPath $env:INSTALLER_PATH -InstallMode CurrentUser -LogDirectory test-results/installer/current-user
+          ./.github/scripts/smoke-installer.ps1 -InstallerPath $env:INSTALLER_PATH -InstallMode CurrentUser -TestUpgradePreservesData -LogDirectory test-results/installer/current-user
           ./.github/scripts/smoke-installer.ps1 -InstallerPath $env:INSTALLER_PATH -InstallMode AllUsers -LogDirectory test-results/installer/all-users
       - name: Upload verified installer
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

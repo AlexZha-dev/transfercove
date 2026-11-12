@@ -21,7 +21,7 @@ def test_settings_service_initializes_and_persists_preferences(tmp_path: Path) -
         )
         service = SettingsService(database)
         fallback = Settings(
-            app=AppConfig(title="First title"),
+            app=AppConfig(title="First title", version="0.3.0"),
             uvicorn=UvicornConfig(log_level="warning"),
             transmitter=TransmitterSettings(
                 storage_dir=tmp_path / "first-files",
@@ -49,7 +49,7 @@ def test_settings_service_initializes_and_persists_preferences(tmp_path: Path) -
 
     assert first.app.title == "First title"
     assert loaded.app.title == "Saved title"
-    assert loaded.app.version == "0.2.3"
+    assert loaded.app.version == "0.3.0"
     assert loaded.desktop.auto_start is True
     assert loaded.uvicorn.log_level == "warning"
     assert loaded.transmitter.database_url == "sqlite+aiosqlite:///first.db"

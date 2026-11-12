@@ -12,7 +12,7 @@ The computer receives files. A phone, tablet, or another computer sends them fro
 
 <br>
 
-![Version](https://img.shields.io/badge/version-0.2.3-1f8f55?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.3.0-1f8f55?style=flat-square)
 ![Python](https://img.shields.io/badge/python-3.14%2B-3776AB?style=flat-square&logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-111827?style=flat-square)
 
@@ -185,6 +185,8 @@ GitHub Actions runs dependency review, linting, formatting checks, and the full 
 
 After the checks pass, CI builds the Windows app and installer, silently installs it in temporary directories as both the current user and all users, and verifies desktop initialization and clean uninstallation. Pull requests also receive dependency review, and Dependabot proposes weekly dependency and workflow updates. Verified installers are available in the workflow run's **Artifacts** section as `TransferCove-test-<commit-sha>`. See [the CI guide](docs/ci.md) for local commands, diagnostics, and required PR checks.
 
+Stable Windows releases use the separate tag-triggered workflow. Publishing a `vX.Y.Z` tag builds and smoke-tests the installer, checks that the tag and application version match `pyproject.toml`, and publishes the installer with a SHA-256 checksum and generated release notes. The packaged Windows app checks GitHub Releases in the background at most once every 24 hours; **Settings → About this app** also has a manual check. Updates are downloaded only from stable releases, verified against the published checksum, and installed only after confirmation. Network failures do not prevent normal app use. See the [release and update guide](docs/ci.md#stable-releases-and-desktop-updates).
+
 ### Project structure
 
 ```text
@@ -220,7 +222,7 @@ poetry run python tools/export_brand.py
 Build the Windows desktop package on Windows:
 
 ```bash
-poetry run flet build windows --yes --build-version 0.2.3
+poetry run flet build windows --yes --build-version 0.3.0
 ```
 
 Flet reads the application icon from `assets/icon.png`; the build entry point, artifact name, and local-data exclusions are configured in `pyproject.toml`. A Windows build also requires Flutter and the C++ desktop tools from Visual Studio. See the [Flet Windows publishing guide](https://flet.dev/docs/publish/windows/) for the platform prerequisites.
@@ -237,7 +239,7 @@ poetry run flet build windows --yes --python-version 3.14 --build-version (poetr
 
 Opening the Inno Setup script directly also works: it reads the version from the built executable when no version override is supplied.
 
-The installer displays the MIT license, installs [`LICENSE`](LICENSE) and [`THIRD-PARTY-NOTICES.txt`](THIRD-PARTY-NOTICES.txt), and preserves the dependency license metadata shipped in the Flet bundle. The generated installer should be digitally signed before public distribution; signing is intentionally kept outside the repository so certificates and passwords are never committed. If dependency versions change during a rebuild, update `THIRD-PARTY-NOTICES.txt` from the final bundle before publishing the installer.
+The installer displays the MIT license, installs [`LICENSE`](LICENSE) and [`THIRD-PARTY-NOTICES.txt`](THIRD-PARTY-NOTICES.txt), and preserves the dependency license metadata shipped in the Flet bundle. Release installers are currently unsigned; signing remains outside the repository so certificates and passwords are never committed. If dependency versions change during a rebuild, update `THIRD-PARTY-NOTICES.txt` from the final bundle before publishing the installer.
 
 ### Current project boundaries
 

@@ -1,0 +1,6 @@
+{
+  "version": "0.2.3",
+  "installer_url": "https://github.com/AlexZha-dev/transfercove/releases/download/v0.2.3/TransferCove-Setup-0.2.3.exe",
+  "sha256": "8dc548709564b1933a09ff173224d97b96ad2fa4b649931e5803a7c561425e68",
+  "install_mode": "AllUsers"
+}

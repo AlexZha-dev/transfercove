@@ -22,6 +22,7 @@ from app.core.theme import (
     section_title,
     text_field,
 )
+from app.services.update_service import UpdateViewState
 
 
 class SettingsPage:
@@ -31,11 +32,15 @@ class SettingsPage:
         go_back,
         page: ft.Page,
         file_picker: ft.FilePicker | None = None,
+        update_state: UpdateViewState | None = None,
+        check_updates=None,
+        update_action=None,
     ) -> None:
         self.controller = controller
         self.go_back = go_back
         self.page = page
         self.file_picker = file_picker or ft.FilePicker()
+        self.update_state = update_state or UpdateViewState(supported=False)
         if file_picker is None:
             self.page.services.append(self.file_picker)
         settings = controller.settings
@@ -55,6 +60,45 @@ class SettingsPage:
         )
         self.app_version = ft.Text(size=12, color=COLORS["primary"], selectable=True)
         self.app_debug = ft.Text(size=12, color=COLORS["muted"])
+        self.update_status = ft.Text(size=12, color=COLORS["muted_bright"])
+        self.update_release_version = ft.Text(
+            size=13, color=COLORS["primary"], weight=ft.FontWeight.W_600
+        )
+        self.update_release_notes = ft.Text(
+            size=12, color=COLORS["muted_bright"], selectable=True
+        )
+        self.update_release_info = ft.Column(
+            [self.update_release_version, self.update_release_notes],
+            spacing=8,
+            visible=False,
+        )
+        self.check_updates_button = ft.Button(
+            "Check for updates",
+            icon=ft.Icons.UPDATE,
+            style=button_style(),
+            on_click=check_updates,
+        )
+        self.update_action_button = ft.Button(
+            "Download and install",
+            icon=ft.Icons.DOWNLOAD_ROUNDED,
+            style=button_style(primary=True),
+            on_click=update_action,
+            visible=False,
+        )
+        self.update_controls = ft.Column(
+            controls=[
+                self.update_status,
+                self.update_release_info,
+                ft.Row(
+                    [self.check_updates_button, self.update_action_button],
+                    spacing=10,
+                    run_spacing=8,
+                    wrap=True,
+                ),
+            ],
+            spacing=10,
+            visible=self.update_state.supported,
+        )
         self.host = text_field("Bind host", settings.uvicorn.host, expand=3)
         self.port = text_field(
             "Port",
@@ -240,6 +284,7 @@ class SettingsPage:
                                             run_spacing=10,
                                             wrap=True,
                                         ),
+                                        self.update_controls,
                                     ],
                                 ),
                                 self.settings_section(
@@ -378,6 +423,36 @@ class SettingsPage:
         self.app_description.value = application.description
         self.app_version.value = f"Version {application.version}"
         self.app_debug.value = f"Debug mode: {'on' if application.debug else 'off'}"
+        update_state = self.update_state
+        self.update_controls.visible = update_state.supported
+        self.update_status.value = update_state.status
+        self.update_status.color = (
+            COLORS["danger"] if update_state.is_error else COLORS["muted_bright"]
+        )
+        busy = update_state.busy
+        self.check_updates_button.disabled = busy
+        self.check_updates_button.content = (
+            "Checking..." if update_state.checking else "Check for updates"
+        )
+        release = update_state.release
+        self.update_release_info.visible = release is not None
+        self.update_action_button.visible = release is not None
+        self.update_action_button.disabled = busy
+        if release is not None:
+            self.update_release_version.value = (
+                f"Version {release.version} is available"
+            )
+            self.update_release_notes.value = (
+                release.release_notes or "No release notes provided."
+            )
+            self.update_action_button.content = (
+                "Install update"
+                if update_state.installer is not None
+                else "Download and install"
+            )
+        else:
+            self.update_release_version.value = ""
+            self.update_release_notes.value = ""
 
     async def save(self, _):
         self.save_button.disabled = True
