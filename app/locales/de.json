@@ -99,7 +99,7 @@
     "application_information_bc0a7c": "Anwendungsinformationen",
     "security_8f6fb4": "Sicherheit",
     "important_limitations_before_sharing_files_d9e96f": "Wichtige Einschränkungen vor dem Teilen von Dateien.",
-    "saving_settings_restarts_the_server_if_it__e752ef": "Beim Speichern der Einstellungen wird ein laufender Server neu gestartet.",
+    "saving_settings_restarts_the_server_if_it__e752ef": "Eine reine Sprachänderung lässt den Server laufen. Andere Änderungen starten ihn neu.",
     "back_to_dashboard_b59e0c": "Zurück zur Übersicht",
     "on_b8d31e": "ein",
     "off_b4dc66": "aus",

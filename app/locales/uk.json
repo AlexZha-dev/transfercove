@@ -99,7 +99,7 @@
     "application_information_bc0a7c": "Інформація про програму",
     "security_8f6fb4": "Безпека",
     "important_limitations_before_sharing_files_d9e96f": "Важливі обмеження перед обміном файлами.",
-    "saving_settings_restarts_the_server_if_it__e752ef": "Збереження налаштувань перезапускає сервер, якщо він працює.",
+    "saving_settings_restarts_the_server_if_it__e752ef": "Зміна лише мови не зупиняє сервер. Інші зміни перезапускають його.",
     "back_to_dashboard_b59e0c": "Повернутися на головну",
     "on_b8d31e": "увімкнено",
     "off_b4dc66": "вимкнено",

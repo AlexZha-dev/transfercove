@@ -99,7 +99,7 @@
     "application_information_bc0a7c": "Application information",
     "security_8f6fb4": "Security",
     "important_limitations_before_sharing_files_d9e96f": "Important limitations before sharing files.",
-    "saving_settings_restarts_the_server_if_it__e752ef": "Saving settings restarts the server if it is running.",
+    "saving_settings_restarts_the_server_if_it__e752ef": "Saving only the language keeps the server running. Other changes restart it.",
     "back_to_dashboard_b59e0c": "Back to dashboard",
     "on_b8d31e": "on",
     "off_b4dc66": "off",

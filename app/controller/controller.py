@@ -82,7 +82,12 @@ class AppController:
         self.notify()
 
     async def save_settings(self, settings: Settings) -> bool:
-        restart_required = self.server_running
+        only_language_changed = (
+            settings.desktop.language != self.settings.desktop.language
+            and settings.model_dump(exclude={"desktop": {"language"}})
+            == self.settings.model_dump(exclude={"desktop": {"language"}})
+        )
+        restart_required = self.server_running and not only_language_changed
         if restart_required:
             await self.stop_server()
 

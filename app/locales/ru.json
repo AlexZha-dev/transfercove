@@ -99,7 +99,7 @@
     "application_information_bc0a7c": "Информация о приложении",
     "security_8f6fb4": "Безопасность",
     "important_limitations_before_sharing_files_d9e96f": "Важные ограничения при передаче файлов.",
-    "saving_settings_restarts_the_server_if_it__e752ef": "При сохранении настроек работающий сервер перезапустится.",
+    "saving_settings_restarts_the_server_if_it__e752ef": "При смене только языка сервер продолжит работу. Другие изменения перезапускают сервер.",
     "back_to_dashboard_b59e0c": "На главную",
     "on_b8d31e": "включён",
     "off_b4dc66": "выключен",

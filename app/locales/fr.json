@@ -99,7 +99,7 @@
     "application_information_bc0a7c": "Informations sur l’application",
     "security_8f6fb4": "Sécurité",
     "important_limitations_before_sharing_files_d9e96f": "Limitations importantes avant de partager des fichiers.",
-    "saving_settings_restarts_the_server_if_it__e752ef": "L’enregistrement des paramètres redémarre le serveur s’il est en cours d’exécution.",
+    "saving_settings_restarts_the_server_if_it__e752ef": "Changer uniquement la langue laisse le serveur actif. Les autres changements le redémarrent.",
     "back_to_dashboard_b59e0c": "Retour au tableau de bord",
     "on_b8d31e": "activé",
     "off_b4dc66": "désactivé",

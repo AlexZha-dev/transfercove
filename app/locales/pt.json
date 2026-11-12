@@ -99,7 +99,7 @@
     "application_information_bc0a7c": "Informações do aplicativo",
     "security_8f6fb4": "Segurança",
     "important_limitations_before_sharing_files_d9e96f": "Limitações importantes antes de compartilhar arquivos.",
-    "saving_settings_restarts_the_server_if_it__e752ef": "Salvar as configurações reinicia o servidor se ele estiver em execução.",
+    "saving_settings_restarts_the_server_if_it__e752ef": "Alterar apenas o idioma mantém o servidor em execução. Outras alterações o reiniciam.",
     "back_to_dashboard_b59e0c": "Voltar ao painel",
     "on_b8d31e": "ativado",
     "off_b4dc66": "desativado",
