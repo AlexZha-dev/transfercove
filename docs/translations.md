@@ -1,5 +1,10 @@
 # Translation catalogs
 
+The application currently includes English (`en`), Russian (`ru`), Spanish
+(`es`), Brazilian Portuguese (`pt`), German (`de`), French (`fr`), and
+Ukrainian (`uk`). Regional variants such as `es-MX`, `pt-BR`, and `fr-CA`
+fall back to their base-language catalog when no regional catalog exists.
+
 The upload page loads locale catalogs from `app/locales/`. Each UTF-8 JSON
 file has an `id` matching its filename, a native-language `name`, and `web`
 and `desktop` objects. Use a BCP 47 language tag, for example `pt-BR.json`.
