@@ -4,6 +4,12 @@ param(
     [guid]$AppId = 'A6F4C3F3-2DA6-4AF4-9E2F-7C0A0200BEEF',
     [ValidateSet('CurrentUser', 'AllUsers')]
     [string]$InstallMode = 'CurrentUser',
+    # Reinstall the candidate to exercise CurrentUser scope preservation.
+    [switch]$TestUpgradePreservesData,
+    [string]$PreviousInstallerPath,
+    [string]$PreviousVersion,
+    [string]$ExpectedVersion,
+    [string]$PythonPath = 'python',
     [string]$LogDirectory = 'test-results/installer',
     [int]$StartupTimeoutSeconds = 60
 )
@@ -27,6 +33,29 @@ if (Get-Process -Name TransferCove -ErrorAction SilentlyContinue) {
     throw 'TransferCove is already running; use a clean runner.'
 }
 $installer = (Resolve-Path -LiteralPath $InstallerPath).Path
+$helper = (Resolve-Path (Join-Path $PSScriptRoot '../../tools/installer_smoke.py')).Path
+if (-not $ExpectedVersion) {
+    $ExpectedVersion = & $PythonPath $helper version
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot read candidate version' }
+    $ExpectedVersion = $ExpectedVersion.Trim()
+}
+if ($ExpectedVersion -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid expected version' }
+$initialInstaller = $installer
+$initialVersion = $ExpectedVersion
+if ($PreviousInstallerPath) {
+    if (-not $PreviousVersion -or $PreviousVersion -notmatch '^\d+\.\d+\.\d+$') {
+        throw 'A valid PreviousVersion is required for an upgrade test'
+    }
+    if ([version]$ExpectedVersion -le [version]$PreviousVersion) {
+        throw 'Upgrade target must be newer than the previous version'
+    }
+    $initialInstaller = (Resolve-Path -LiteralPath $PreviousInstallerPath).Path
+    if ($initialInstaller -eq $installer) { throw 'An upgrade must use two different installers' }
+    $initialVersion = $PreviousVersion
+}
+elseif ($PreviousVersion) { throw 'PreviousInstallerPath is required with PreviousVersion' }
+$testPreservation = $TestUpgradePreservesData -or [bool]$PreviousInstallerPath
+
 $logs = [System.IO.Path]::GetFullPath($LogDirectory)
 $null = New-Item -ItemType Directory -Path $logs -Force
 $tempBase = [System.IO.Path]::GetTempPath()
@@ -54,6 +83,64 @@ $testEnvironment = @{
     APPDATA = (Join-Path $testRoot 'appdata')
 }
 
+function Read-ApplicationSettings {
+    $json = & $PythonPath $helper read --database (Join-Path $dataDirectory 'desktop-settings.db')
+    if ($LASTEXITCODE -ne 0) { throw 'Could not read application settings' }
+    return ($json | ConvertFrom-Json)
+}
+
+function Start-SmokeApplication([string]$Version, [bool]$Legacy, [string]$Stage) {
+    # Each launch must produce its own log, not reuse a previous readiness marker.
+    if (Test-Path -LiteralPath $consoleLog) { Clear-Content -LiteralPath $consoleLog }
+    $script:applicationProcess = Start-Process -FilePath (Join-Path $installDirectory 'TransferCove.exe') `
+        -WorkingDirectory $testRoot -PassThru -WindowStyle Hidden
+    $deadline = [DateTime]::UtcNow.AddSeconds($StartupTimeoutSeconds)
+    $ready = $false
+    while ([DateTime]::UtcNow -lt $deadline) {
+        $applicationProcess.Refresh()
+        if ($applicationProcess.HasExited) { throw 'Installed application exited during startup' }
+        $content = ''
+        if (Test-Path -LiteralPath $consoleLog) {
+            $content = [string](Get-Content -LiteralPath $consoleLog -Raw)
+            if ($content -match 'Traceback \(most recent call last\)|Unhandled exception') {
+                throw 'Installed application reported an exception'
+            }
+        }
+        $state = Read-ApplicationSettings
+        $hasVersion = $null -ne $state.PSObject.Properties['version'] -and $state.version -eq $Version
+        # v0.2.3 predates the readiness marker; its committed settings and live process
+        # establish baseline initialization. Every candidate requires its exact marker.
+        $hasMarker = $content.Contains("TransferCove desktop initialized version=$Version")
+        if ($hasVersion -and ($Legacy -or $hasMarker)) { $ready = $true; break }
+        Start-Sleep -Milliseconds 250
+    }
+    if (-not $ready) { throw "Installed desktop $Version did not initialize before the timeout" }
+    Start-Sleep -Seconds 3
+    $applicationProcess.Refresh()
+    if ($applicationProcess.HasExited) { throw 'Installed application exited after initialization' }
+    if (Test-Path -LiteralPath $consoleLog) {
+        $content = [string](Get-Content -LiteralPath $consoleLog -Raw)
+        Copy-Item -LiteralPath $consoleLog -Destination (Join-Path $logs "$Stage-console.log") -Force
+        if ($content -match 'Traceback \(most recent call last\)|Unhandled exception') {
+            throw 'Installed application reported an exception after initialization'
+        }
+    }
+}
+
+function Assert-InstallationRegistration([string]$Version) {
+    if (-not (Test-Path -LiteralPath $expectedUninstallKey)) { throw 'Installation changed registry scope' }
+    $registration = Get-ItemProperty -LiteralPath $expectedUninstallKey
+    if ([System.IO.Path]::GetFullPath($registration.InstallLocation).TrimEnd('\') -ine $installDirectory.TrimEnd('\')) {
+        throw 'Installation changed directory'
+    }
+    if ($registration.DisplayVersion -ne $Version) { throw 'Installer registered the wrong version' }
+    foreach ($key in $uninstallKeys) {
+        if ($key -ne $expectedUninstallKey -and (Test-Path -LiteralPath $key)) {
+            throw 'Installation registered an unexpected second scope'
+        }
+    }
+}
+
 try {
     # Exercise the real installer in both registry scopes in separate runs.
     $installArguments = @(
@@ -68,7 +155,7 @@ try {
     $installArguments += @(
         "/DIR=`"$installDirectory`"", "/LOG=`"$installLog`""
     )
-    $setupProcess = Start-Process -FilePath $installer -ArgumentList $installArguments `
+    $setupProcess = Start-Process -FilePath $initialInstaller -ArgumentList $installArguments `
         -PassThru -WindowStyle Hidden
     if (-not $setupProcess.WaitForExit(120000)) { throw 'Installer timed out' }
     if ($setupProcess.ExitCode -ne 0) { throw "Installer exited with $($setupProcess.ExitCode)" }
@@ -80,7 +167,9 @@ try {
     if (-not (Test-Path -LiteralPath $expectedUninstallKey)) {
         throw "Installer did not register $InstallMode installation at $expectedUninstallKey"
     }
-    foreach ($filename in @('TransferCove.exe', 'LICENSE', 'THIRD-PARTY-NOTICES.txt', 'SECURITY-NOTICE.txt')) {
+    $requiredFiles = @('TransferCove.exe', 'LICENSE', 'THIRD-PARTY-NOTICES.txt')
+    if (-not $PreviousInstallerPath) { $requiredFiles += 'SECURITY-NOTICE.txt' }
+    foreach ($filename in $requiredFiles) {
         if (-not (Test-Path -LiteralPath (Join-Path $installDirectory $filename) -PathType Leaf)) {
             throw "Installed file is missing: $filename"
         }
@@ -90,38 +179,52 @@ try {
         [Environment]::SetEnvironmentVariable($name, $testEnvironment[$name], 'Process')
     }
 
-    $startedAt = [DateTime]::UtcNow
-    $applicationProcess = Start-Process -FilePath (Join-Path $installDirectory 'TransferCove.exe') `
-        -WorkingDirectory $testRoot -PassThru -WindowStyle Hidden
-    $deadline = [DateTime]::UtcNow.AddSeconds($StartupTimeoutSeconds)
-    $ready = $false
-    while ([DateTime]::UtcNow -lt $deadline) {
-        $applicationProcess.Refresh()
-        if ($applicationProcess.HasExited) { throw 'Installed application exited during startup' }
-        if ((Test-Path -LiteralPath $consoleLog) -and (Get-Item -LiteralPath $consoleLog).LastWriteTimeUtc -ge $startedAt) {
-            $content = Get-Content -LiteralPath $consoleLog -Raw
-            if ($content -match 'Traceback \(most recent call last\)|Unhandled exception') {
-                throw 'Installed application reported an exception'
-            }
-            # Windows reports MainWindowHandle = 0 for hidden processes. This
-            # message is emitted only after the real desktop view initializes.
-            if ($content -match 'TransferCove desktop initialized') {
-                $ready = $true
-                break
+    Assert-InstallationRegistration $initialVersion
+    Start-SmokeApplication $initialVersion ([bool]$PreviousInstallerPath) 'initial'
+
+    if ($testPreservation) {
+        $receivedDirectory = $testEnvironment['TRANSMITTER__STORAGE_DIR']
+        $receivedFile = Join-Path $receivedDirectory 'received-before-upgrade.txt'
+        $receivedContent = 'TransferCove upgrade preservation check'
+        $null = New-Item -ItemType Directory -Path $receivedDirectory -Force
+        [System.IO.File]::WriteAllText($receivedFile, $receivedContent)
+        Stop-Process -Id $applicationProcess.Id -Force
+        if (-not $applicationProcess.WaitForExit(10000)) { throw 'App did not stop before upgrade' }
+
+        & $PythonPath $helper seed --database (Join-Path $dataDirectory 'desktop-settings.db')
+        if ($LASTEXITCODE -ne 0) { throw 'Could not seed the pre-upgrade settings' }
+
+        # Use exactly the same scope detection and argument generation as the updater.
+        $argumentsJson = & $PythonPath $helper arguments --executable (Join-Path $installDirectory 'TransferCove.exe')
+        if ($LASTEXITCODE -ne 0) { throw 'Could not determine existing installation arguments' }
+        $arguments = $argumentsJson | ConvertFrom-Json
+        if ($arguments.scope -ne $InstallMode) { throw 'Updater selected the wrong install scope' }
+        $upgradeLog = Join-Path $logs 'upgrade-install.log'
+        $upgradeArguments = $arguments.command_line + ' /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /LOG="' + $upgradeLog + '"'
+        $setupProcess = Start-Process -FilePath $installer -ArgumentList $upgradeArguments `
+            -PassThru -WindowStyle Hidden
+        if (-not $setupProcess.WaitForExit(120000)) { throw 'Upgrade installer timed out' }
+        if ($setupProcess.ExitCode -ne 0) { throw "Upgrade installer exited with $($setupProcess.ExitCode)" }
+        Assert-InstallationRegistration $ExpectedVersion
+        foreach ($filename in @('TransferCove.exe', 'LICENSE', 'THIRD-PARTY-NOTICES.txt', 'SECURITY-NOTICE.txt')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $installDirectory $filename) -PathType Leaf)) {
+                throw "Upgraded installation is missing $filename"
             }
         }
-        Start-Sleep -Milliseconds 250
+
+        Start-SmokeApplication $ExpectedVersion $false 'upgraded'
+        $state = Read-ApplicationSettings
+        if ($state.title -cne 'Preserved upgrade setting' -or $state.version -ne $ExpectedVersion -or
+            [System.IO.Path]::GetFullPath($state.storage_dir) -ine $receivedDirectory) {
+            throw 'The upgraded application did not preserve its settings after startup'
+        }
+        if (-not (Test-Path -LiteralPath $receivedFile -PathType Leaf) -or
+            [System.IO.File]::ReadAllText($receivedFile) -cne $receivedContent) {
+            throw 'The upgraded application did not preserve the received file after startup'
+        }
+        Write-Output "Preserved settings, received files, directory and scope after $initialVersion -> $ExpectedVersion ($InstallMode)."
     }
-    if (-not $ready) { throw 'Installed desktop did not initialize before the timeout' }
-    Start-Sleep -Seconds 3
-    $applicationProcess.Refresh()
-    if ($applicationProcess.HasExited) { throw 'Installed application exited after initialization' }
-    if ((Get-Content -LiteralPath $consoleLog -Raw) -match 'Traceback \(most recent call last\)|Unhandled exception') {
-        throw 'Installed application reported an exception after initialization'
-    }
-    if (-not (Test-Path -LiteralPath (Join-Path $dataDirectory 'desktop-settings.db'))) {
-        throw 'Installed application did not initialize its settings database'
-    }
+
     Write-Output "Installed application initialized successfully ($InstallMode)."
 }
 finally {

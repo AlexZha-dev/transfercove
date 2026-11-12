@@ -68,3 +68,27 @@ foreach ($case in @(
     }
     Write-Output "Passed: $($case.Name)"
 }
+
+# Version validation must fail before any installer process is started.
+foreach ($case in @(
+    @{ Name = 'same-version'; Previous = '0.3.0'; Expected = '0.3.0'; Error = 'Upgrade target must be newer' },
+    @{ Name = 'downgrade'; Previous = '0.3.1'; Expected = '0.3.0'; Error = 'Upgrade target must be newer' },
+    @{ Name = 'missing-old-version'; Previous = ''; Expected = '0.3.0'; Error = 'A valid PreviousVersion is required' },
+    @{ Name = 'same-installer'; Previous = '0.2.3'; Expected = '0.3.0'; Error = 'An upgrade must use two different installers' }
+)) {
+    $global:transferCoveSmokeFixture.Installed = $false
+    $global:transferCoveSmokeFixture.UninstallCalls = 0
+    $caught = $null
+    try {
+        & $smokeScript -InstallerPath $fixtureInstaller -PreviousInstallerPath $fixtureInstaller `
+            -PreviousVersion $case.Previous -ExpectedVersion $case.Expected
+    }
+    catch { $caught = $_.Exception.Message }
+    if ($null -eq $caught -or -not $caught.Contains($case.Error)) {
+        throw "Scenario $($case.Name) expected '$($case.Error)', got '$caught'"
+    }
+    if ($global:transferCoveSmokeFixture.Installed -or $global:transferCoveSmokeFixture.UninstallCalls -ne 0) {
+        throw "Scenario $($case.Name) unexpectedly ran an installer"
+    }
+    Write-Output "Passed: $($case.Name)"
+}
