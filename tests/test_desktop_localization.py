@@ -101,3 +101,33 @@ def test_invalid_settings_do_not_apply_language(monkeypatch):
     assert controller.settings.desktop.language == "en"
     assert view.current_view is settings
     assert view.route_title.value == "Settings"
+
+
+@pytest.mark.parametrize(
+    ("language", "dashboard", "settings_label", "save_label"),
+    [
+        ("es", "Panel", "Configuración", "Guardar cambios"),
+        ("pt", "Painel", "Configurações", "Salvar alterações"),
+        ("de", "Übersicht", "Einstellungen", "Änderungen speichern"),
+        ("fr", "Tableau de bord", "Paramètres", "Enregistrer les modifications"),
+        ("uk", "Головна", "Налаштування", "Зберегти зміни"),
+    ],
+)
+def test_added_language_is_selectable_and_applies_after_save(
+    monkeypatch, language, dashboard, settings_label, save_label
+):
+    view, controller = make_view(monkeypatch)
+    view.show_settings()
+    settings = view.current_view
+    assert language in {option.key for option in settings.language.options}
+    settings.language.value = language
+    asyncio.run(settings.save(None))
+
+    assert controller.settings.desktop.language == language
+    assert view.route_title.value == settings_label
+    assert view.current_view.save_button.content == save_label
+    view.show_home()
+    assert view.route_title.value == dashboard
+
+    restarted, _ = make_view(monkeypatch, language)
+    assert restarted.route_title.value == dashboard

@@ -74,6 +74,57 @@ def test_locale_endpoint_exposes_discovered_catalogs(client):
     assert response.json()["ru"]["web"]["language"] == "Язык"
 
 
+@pytest.mark.parametrize(
+    ("requested", "language"),
+    [
+        ("es-MX", "es"),
+        ("pt-BR", "pt"),
+        ("de-AT", "de"),
+        ("fr-CA", "fr"),
+        ("uk-UA", "uk"),
+    ],
+)
+def test_new_languages_are_discovered_and_match_regional_variants(
+    client, requested, language
+):
+    catalogs = load_catalogs()
+    assert resolve_locale(requested, catalogs) == language
+    assert language in client.get("/locales").json()
+    assert (
+        Localizer(requested, catalogs).text("dashboard_67b696")
+        == catalogs[language]["desktop"]["dashboard_67b696"]
+    )
+
+
+@pytest.mark.parametrize(
+    ("language", "count", "category"),
+    [
+        ("es", 1, "one"),
+        ("es", 2, "other"),
+        ("es", 1_000_000, "many"),
+        ("pt", 1, "one"),
+        ("pt", 2, "other"),
+        ("pt", 1_000_000, "many"),
+        ("de", 1, "one"),
+        ("de", 2, "other"),
+        ("fr", 1, "one"),
+        ("fr", 2, "other"),
+        ("fr", 1_000_000, "many"),
+        ("uk", 1, "one"),
+        ("uk", 2, "few"),
+        ("uk", 5, "many"),
+        ("uk", 21, "one"),
+    ],
+)
+def test_added_languages_include_cldr_plural_forms(language, count, category):
+    from babel import Locale
+
+    catalogs = load_catalogs()
+    assert Locale.parse(language).plural_form(count) == category
+    message = catalogs[language]["web"]["fileCount"][category]
+    assert "{{count}}" in message and "{{size}}" in message
+
+
 def test_english_desktop_catalog_cannot_be_empty():
     catalogs = load_catalogs()
     catalogs["en"]["desktop"] = {}
@@ -127,3 +178,52 @@ console.log(JSON.stringify(results));
         [node, "-e", javascript], check=True, capture_output=True, encoding="utf-8"
     )
     assert json.loads(result.stdout) == ["Hello A.txt"] * 5 + ["Привет A.txt"]
+
+
+def test_added_web_catalogs_cover_browser_plural_rules():
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js is required to execute browser plural rules")
+    catalogs = load_catalogs()
+    script = Path("app/static/upload.js").read_text(encoding="utf-8")
+    functions = script[
+        script.index("function getMessage(") : script.index(
+            "function applyTranslations("
+        )
+    ]
+    javascript = (
+        """
+const catalogs = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
+let activeLanguage = "en";
+let messages = {};
+"""
+        + functions
+        + """
+const results = {};
+for (const language of ["es", "pt", "de", "fr", "uk"]) {
+  activeLanguage = language;
+  messages = catalogs[language].web;
+  results[language] = [1, 2, 5, 21, 1000000].map((count) => {
+    const category = new Intl.PluralRules(language).select(count);
+    const text = t("fileCount." + category, {count, size: "8 MB"});
+    if (!messages.fileCount[category] || !text.includes("8 MB") || text.includes("{{")) {
+      throw new Error(language + ": invalid " + category + " form");
+    }
+    return category;
+  });
+}
+console.log(JSON.stringify(results));
+"""
+    )
+    result = subprocess.run(
+        [node, "-e", javascript],
+        input=json.dumps(catalogs, ensure_ascii=False),
+        check=True,
+        capture_output=True,
+        encoding="utf-8",
+    )
+    categories = json.loads(result.stdout)
+    assert categories["uk"] == ["one", "few", "many", "one", "many"]
+    assert categories["de"] == ["one", "other", "other", "other", "other"]
+    for language in ("es", "pt", "fr"):
+        assert categories[language] == ["one", "other", "other", "other", "many"]
