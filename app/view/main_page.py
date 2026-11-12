@@ -478,7 +478,6 @@ class MainPage(LocalizedView):
     def _set_update_status(self, key: str, **values: object) -> None:
         self.update_state.status_key = key
         self.update_state.status_values = values
-        self.update_state.status = self.tr(key, **values)
 
     def _begin_update_operation(self, operation: UpdateOperation) -> bool:
         # All event handlers run on the UI loop. Claim the operation before any await.

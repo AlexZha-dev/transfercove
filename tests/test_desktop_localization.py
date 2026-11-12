@@ -87,6 +87,9 @@ def test_initial_language_and_unknown_locale(monkeypatch):
     view._set_update_status("update_downloading", version="1.2.3")
     view.show_settings()
     assert view.current_view.update_status.value == "Загрузка версии 1.2.3..."
+    view.current_view.language.value = "en"
+    asyncio.run(view.current_view.save(None))
+    assert view.current_view.update_status.value == "Downloading version 1.2.3..."
     view, _ = make_view(monkeypatch, "not-a-language")
     assert view.route_title.value == "Dashboard"
 

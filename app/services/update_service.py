@@ -63,7 +63,6 @@ class UpdateOperation(StrEnum):
 @dataclass
 class UpdateViewState:
     supported: bool
-    status: str = "Update check will run in the background."
     is_error: bool = False
     operation: UpdateOperation = UpdateOperation.IDLE
     release: UpdateRelease | None = None
