@@ -50,6 +50,7 @@
     "connectionError": "Connection error",
     "canceled": "Upload canceled. Queue cleared.",
     "stoppedStatus": "Upload stopped. Press Start to continue.",
-    "localOnly": "Files are transferred only within your local network"
+    "localOnly": "Files are transferred only within your local network",
+    "language": "Language"
   }
 }

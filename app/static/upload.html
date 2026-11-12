@@ -21,6 +21,9 @@
         <span data-i18n="brand">TransferCove</span>
       </a>
 
+      <label class="language-picker"><span data-i18n="language">Language</span>
+        <select id="language-select" aria-label="Language" data-i18n-aria-label="language"></select>
+      </label>
       <div class="connection-pill">
         <span class="online-dot"></span>
         <span data-i18n="network">Local network</span>
@@ -109,9 +112,6 @@
     </footer>
   </div>
 
-  <script>
-    window.APP_LANGUAGE = window.APP_LANGUAGE || document.documentElement.dataset.language || "en";
-  </script>
   <script src="/static/locales/en.js"></script>
   <script src="/static/upload.js"></script>
 </body>

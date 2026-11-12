@@ -1,6 +1,7 @@
 window.UPLOAD_LOCALES = window.UPLOAD_LOCALES || {};
 
 window.UPLOAD_LOCALES.en = {
+  language: "Language",
   pageTitle: "TransferCove — file upload",
   brand: "TransferCove",
   network: "Local network",
