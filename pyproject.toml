@@ -34,8 +34,9 @@ packages = [{ include = "app" }]
 include = [{ path = "assets", format = ["sdist", "wheel"] }]
 
 [tool.poetry.group.dev.dependencies]
-pytest = ">=9.2.0,<10.0.0"
-ruff = "==0.16.8"
+pytest = ">=9.1.1,<10.0.0"
+ruff = "==0.17.4"
+
 
 [tool.poetry.group.build]
 optional = true
