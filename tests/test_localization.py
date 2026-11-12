@@ -1,6 +1,11 @@
 import json
 
-from app.core.localization import Localizer, load_catalogs, resolve_locale
+from app.core.localization import (
+    Localizer,
+    load_catalogs,
+    resolve_locale,
+    validate_catalogs,
+)
 
 
 def test_locale_matching_and_english_fallback():
@@ -45,3 +50,19 @@ def test_upload_catalogs_have_matching_keys_and_parameters():
             assert set(re.findall(r"\{\{(\w+)\}\}", translated)) == set(
                 re.findall(r"\{\{(\w+)\}\}", value)
             )
+
+
+def test_catalog_validation_detects_missing_messages_and_bad_placeholders():
+    catalogs = load_catalogs()
+    assert validate_catalogs(catalogs) == []
+    catalogs["ru"]["web"].pop("network")
+    catalogs["ru"]["web"]["savedAs"] = "Сохранено: {{name}}"
+    errors = validate_catalogs(catalogs)
+    assert "ru.web.network: missing" in errors
+    assert "ru.web.savedAs: interpolation fields differ" in errors
+
+
+def test_locale_endpoint_exposes_discovered_catalogs(client):
+    response = client.get("/locales")
+    assert response.status_code == 200
+    assert response.json()["ru"]["web"]["language"] == "Язык"
