@@ -17,12 +17,18 @@ include every category used by the language. The browser chooses the form
 using `Intl.PluralRules`.
 
 Run `poetry run python -m app.core.localization` and the localization tests
-before submitting a translation. Missing messages fall back to English at
-runtime, but the validator reports them for translators. Restart the server
-after adding a catalog and reload the upload page to see the new language.
+before submitting a translation. The validator runs in CI and on release; it
+rejects invalid catalogs and an outdated browser fallback. After changing the
+English web messages, regenerate that fallback with
+`poetry run python -m app.core.localization --write-web-fallback` and commit
+the generated file. Missing messages fall back to English at runtime, but the
+validator reports them for translators. Restart the server after adding a
+catalog and reload the upload page to see the new language.
 
 Translate both the `desktop` and `web` sections. Desktop translations are
-applied after settings are saved and restored when the app restarts. The upload
+applied after settings are saved and restored when the app restarts. Changing
+only the desktop language does not restart a running server or interrupt an
+upload. Saving other changes still restarts a running server. The upload
 page has a separate language preference stored by the browser. Diagnostic
 details stay in application logs; names, paths and other user values are not
 translated.
