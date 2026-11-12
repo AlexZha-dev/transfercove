@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 import flet as ft
@@ -25,6 +26,16 @@ from app.core.theme import (
 )
 from app.services.update_service import UpdateViewState
 from app.view.localized import LocalizedView
+
+logger = logging.getLogger(__name__)
+
+VALIDATION_FIELDS = {
+    "port": "port_72e9a5",
+    "max_file_mib": "maximum_file_size_mib_a081ee",
+    "max_concurrent": "simultaneous_uploads_2349fd",
+    "reserve_mib": "free_disk_reserve_mib_fe08df",
+    "idle_timeout_seconds": "upload_inactivity_timeout_seconds_610284",
+}
 
 
 class SettingsPage(LocalizedView):
@@ -502,6 +513,53 @@ class SettingsPage(LocalizedView):
             self.update_release_version.value = ""
             self.update_release_notes.value = ""
 
+    def _validated_server_settings(self, current_settings):
+        """Validate both forms together so all invalid fields can be reported."""
+        candidates = (
+            (
+                UvicornConfig,
+                {
+                    "host": self.host.value or "127.0.0.1",
+                    "port": self.port.value or "8000",
+                    "log_level": current_settings.uvicorn.log_level,
+                    "reload": self.reload.value,
+                },
+            ),
+            (
+                UploadLimits,
+                {
+                    "max_file_mib": self.max_file_mib.value or "",
+                    "max_concurrent": self.max_concurrent.value or "",
+                    "reserve_mib": self.reserve_mib.value or "",
+                    "idle_timeout_seconds": self.idle_timeout.value or "",
+                },
+            ),
+        )
+        results, errors = [], []
+        for model, values in candidates:
+            try:
+                results.append(model.model_validate(values))
+            except ValidationError as error:
+                errors.extend(error.errors())
+        if errors:
+            messages = []
+            for error in errors:
+                field = VALIDATION_FIELDS.get(error["loc"][-1])
+                kind = error["type"]
+                if field and kind in {"int_parsing", "int_type"}:
+                    reason = self.tr("validation_integer")
+                elif field and kind in {"greater_than_equal", "less_than_equal"}:
+                    bound = "ge" if kind == "greater_than_equal" else "le"
+                    reason = self.tr(f"validation_{bound}", value=error["ctx"][bound])
+                else:
+                    logger.warning("Unsupported settings validation error: %s", error)
+                    messages.append(self.tr("invalid_settings"))
+                    continue
+                messages.append(f"{self.tr(field)}: {reason}")
+            self.message.value = "\n".join(messages)
+            return None
+        return results
+
     async def save(self, _):
         changed_language = False
         self.save_button.disabled = True
@@ -510,24 +568,19 @@ class SettingsPage(LocalizedView):
         self.page.update()
         try:
             current_settings = self.controller.settings
+            validated = self._validated_server_settings(current_settings)
+            if validated is None:
+                self.message.color = COLORS["danger"]
+                return
+            uvicorn, upload_limits = validated
             settings = Settings(
                 app=current_settings.app.model_copy(deep=True),
-                uvicorn=UvicornConfig(
-                    host=self.host.value or "127.0.0.1",
-                    port=int(self.port.value or "8000"),
-                    log_level=current_settings.uvicorn.log_level,
-                    reload=self.reload.value,
-                ),
+                uvicorn=uvicorn,
                 transmitter=TransmitterSettings(
                     storage_dir=Path(self.storage_path.value or ".data/files"),
                     database_url=current_settings.transmitter.database_url,
                 ),
-                upload_limits=UploadLimits(
-                    max_file_mib=int(self.max_file_mib.value or ""),
-                    max_concurrent=int(self.max_concurrent.value or ""),
-                    reserve_mib=int(self.reserve_mib.value or ""),
-                    idle_timeout_seconds=int(self.idle_timeout.value or ""),
-                ),
+                upload_limits=upload_limits,
                 desktop=DesktopConfig(
                     language=self.language.value or "en",
                     auto_start=self.auto_start.value,
@@ -550,6 +603,7 @@ class SettingsPage(LocalizedView):
             )
 
         except ValueError, ValidationError:
+            logger.exception("Could not validate settings")
             self.message.value = self.tr("invalid_settings")
             self.message.color = COLORS["danger"]
         finally:

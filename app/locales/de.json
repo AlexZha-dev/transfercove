@@ -2,6 +2,9 @@
   "id": "de",
   "name": "Deutsch",
   "desktop": {
+    "validation_integer": "Gib eine ganze Zahl ein.",
+    "validation_ge": "Der Wert muss mindestens {{value}} betragen.",
+    "validation_le": "Der Wert darf höchstens {{value}} betragen.",
     "start_server_7b7da6": "Server starten",
     "open_upload_page_b75d1f": "Upload-Seite öffnen",
     "copy_upload_link_fa26cd": "Upload-Link kopieren",

@@ -2,6 +2,9 @@
   "id": "fr",
   "name": "Français",
   "desktop": {
+    "validation_integer": "Saisissez un nombre entier.",
+    "validation_ge": "La valeur doit être au moins égale à {{value}}.",
+    "validation_le": "La valeur doit être au plus égale à {{value}}.",
     "start_server_7b7da6": "Démarrer le serveur",
     "open_upload_page_b75d1f": "Ouvrir la page d’envoi",
     "copy_upload_link_fa26cd": "Copier le lien d’envoi",

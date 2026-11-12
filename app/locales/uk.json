@@ -2,6 +2,9 @@
   "id": "uk",
   "name": "Українська",
   "desktop": {
+    "validation_integer": "Введіть ціле число.",
+    "validation_ge": "Значення має бути не менше {{value}}.",
+    "validation_le": "Значення має бути не більше {{value}}.",
     "start_server_7b7da6": "Запустити сервер",
     "open_upload_page_b75d1f": "Відкрити сторінку завантаження",
     "copy_upload_link_fa26cd": "Скопіювати посилання для завантаження",

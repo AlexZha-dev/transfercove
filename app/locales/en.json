@@ -2,6 +2,9 @@
   "id": "en",
   "name": "English",
   "desktop": {
+    "validation_integer": "Enter a whole number.",
+    "validation_ge": "Must be at least {{value}}.",
+    "validation_le": "Must be at most {{value}}.",
     "start_server_7b7da6": "Start server",
     "open_upload_page_b75d1f": "Open upload page",
     "copy_upload_link_fa26cd": "Copy upload link",

@@ -101,6 +101,46 @@ def test_invalid_settings_do_not_apply_language(monkeypatch):
     assert controller.settings.desktop.language == "en"
     assert view.current_view is settings
     assert view.route_title.value == "Settings"
+    assert "Port: Enter a whole number." in settings.message.value
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "expected"),
+    [
+        ("port", "65536", "65535"),
+        ("max_file_mib", "0", "1"),
+        ("max_concurrent", "101", "100"),
+        ("reserve_mib", "-1", "0"),
+        ("idle_timeout", "86401", "86400"),
+    ],
+)
+def test_invalid_numeric_ranges_identify_the_field(monkeypatch, field, value, expected):
+    view, controller = make_view(monkeypatch)
+    view.show_settings()
+    settings = view.current_view
+    control = getattr(settings, field)
+    control.value = value
+    asyncio.run(settings.save(None))
+    assert control.label in settings.message.value
+    assert expected in settings.message.value
+    controller.save_settings.assert_not_awaited()
+
+
+def test_multiple_settings_errors_are_translated_together(monkeypatch):
+    view, controller = make_view(monkeypatch, "ru")
+    view.show_settings()
+    settings = view.current_view
+    settings.port.value = "abc"
+    settings.max_concurrent.value = "0"
+    settings.language.value = "en"
+    asyncio.run(settings.save(None))
+    assert "Порт: Введите целое число." in settings.message.value
+    assert (
+        "Одновременных загрузок: Значение должно быть не меньше 1."
+        in settings.message.value
+    )
+    assert controller.settings.desktop.language == "ru"
+    controller.save_settings.assert_not_awaited()
 
 
 @pytest.mark.parametrize(

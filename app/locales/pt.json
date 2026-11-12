@@ -2,6 +2,9 @@
   "id": "pt",
   "name": "Português",
   "desktop": {
+    "validation_integer": "Digite um número inteiro.",
+    "validation_ge": "O valor deve ser no mínimo {{value}}.",
+    "validation_le": "O valor deve ser no máximo {{value}}.",
     "start_server_7b7da6": "Iniciar servidor",
     "open_upload_page_b75d1f": "Abrir página de envio",
     "copy_upload_link_fa26cd": "Copiar link de envio",

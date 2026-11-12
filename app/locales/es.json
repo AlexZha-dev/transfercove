@@ -2,6 +2,9 @@
   "id": "es",
   "name": "Español",
   "desktop": {
+    "validation_integer": "Introduce un número entero.",
+    "validation_ge": "El valor debe ser al menos {{value}}.",
+    "validation_le": "El valor debe ser como máximo {{value}}.",
     "start_server_7b7da6": "Iniciar servidor",
     "open_upload_page_b75d1f": "Abrir página de carga",
     "copy_upload_link_fa26cd": "Copiar enlace de carga",
