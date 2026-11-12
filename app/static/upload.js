@@ -77,8 +77,11 @@ const state = {
 
 function getMessage(key) {
   const lookup = (catalog) => key.split(".").reduce((value, part) => value?.[part], catalog);
-  return lookup(messages) ?? lookup(catalogs.en.web) ??
-    (key.startsWith("fileCount.") ? catalogs.en.web.fileCount?.other : undefined);
+  const translated = lookup(messages);
+  if (typeof translated === "string" && translated.trim()) return translated;
+  const english = lookup(catalogs.en.web);
+  if (typeof english === "string" && english.trim()) return english;
+  return key.startsWith("fileCount.") ? catalogs.en.web.fileCount?.other : undefined;
 }
 
 function t(key, values = {}) {
