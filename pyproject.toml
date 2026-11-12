@@ -19,6 +19,7 @@ dependencies = [
     "python-multipart (>=0.0.32,<0.0.33)",
     "qrcode (>=8.2,<9.0)",
     "flet (>=0.86.0,<1.0.0)",
+    "babel (>=2.17,<3.0)",
 ]
 
 
