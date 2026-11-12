@@ -146,7 +146,10 @@ def verify_and_launch_sync(
 ) -> subprocess.Popen:
     try:
         with locked_installer(installer.path) as stream:
-            digest = hashlib.file_digest(stream, "sha256").hexdigest()
+            hasher = hashlib.sha256()
+            while chunk := stream.read(1024 * 1024):
+                hasher.update(chunk)
+            digest = hasher.hexdigest()
             if not hmac.compare_digest(digest, installer.sha256):
                 raise InstallerFileError(
                     "The downloaded installer has changed. Download the update again."

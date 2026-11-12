@@ -455,7 +455,10 @@ class MainPage:
             self._notify_updates()
 
     async def check_for_updates(self, _=None, *, manual: bool = True) -> None:
-        if not self._begin_update_operation(UpdateOperation.CHECKING):
+        service = self.update_service
+        if service is None or not self._begin_update_operation(
+            UpdateOperation.CHECKING
+        ):
             return
         self.update_state.status = "Checking GitHub for stable releases..."
         self.update_state.is_error = False
@@ -479,7 +482,7 @@ class MainPage:
                 return
             self.update_state.release = None
             self.update_state.installer = None
-            release = await self.update_service.check_for_update()
+            release = await service.check_for_update()
             if self._closing:
                 return
             self.update_state.release = release
@@ -505,18 +508,21 @@ class MainPage:
 
     async def update_action(self, _) -> None:
         release = self.update_state.release
+        service = self.update_service
         if release is None:
             return
         if self.update_state.installer is not None:
             self.show_update_install_confirmation()
             return
-        if not self._begin_update_operation(UpdateOperation.DOWNLOADING):
+        if service is None or not self._begin_update_operation(
+            UpdateOperation.DOWNLOADING
+        ):
             return
         self.update_state.status = f"Downloading version {release.version}..."
         self.update_state.is_error = False
         self._notify_updates()
         try:
-            installer = await self.update_service.download_and_verify(release)
+            installer = await service.download_and_verify(release)
             if self._closing:
                 return
             self.update_state.installer = installer

@@ -101,7 +101,8 @@ def parse_version(value: str) -> tuple[int, int, int] | None:
     match = _VERSION_PATTERN.fullmatch(value)
     if match is None:
         return None
-    return tuple(int(part) for part in match.groups())
+    parts = match.groups()
+    return int(parts[0]), int(parts[1]), int(parts[2])
 
 
 def _asset_url(asset: dict[str, Any], *, tag_name: str, name: str) -> str | None:
