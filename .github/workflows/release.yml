@@ -48,6 +48,10 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: ./.github/scripts/test-smoke-installer.ps1
+      - name: Test release publication handling
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./.github/scripts/test-publish-release.ps1
       - name: Run unit and integration tests
         run: poetry run pytest
 
@@ -142,35 +146,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = $env:GITHUB_REF_NAME
-          $installerPath = (Resolve-Path "dist/installer/TransferCove-Setup-$($env:TRANSFER_COVE_VERSION).exe").Path
-          $checksumPath = "$($installerPath).sha256"
-          $headers = @{
-            Accept = 'application/vnd.github+json'
-            Authorization = "Bearer $env:GH_TOKEN"
-            'X-GitHub-Api-Version' = '2026-03-10'
-          }
-          $releaseBody = @{
-            tag_name = $tag
-            name = $tag
-            draft = $true
-            prerelease = $false
-            generate_release_notes = $true
-            make_latest = 'true'
-          } | ConvertTo-Json
-          $release = Invoke-RestMethod -Method Post `
-            -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases" `
-            -Headers $headers -ContentType 'application/json' -Body $releaseBody
-          $uploadUrl = [string]$release.upload_url -replace '\{\?name,label\}$', ''
-          foreach ($assetPath in @($installerPath, $checksumPath)) {
-            $assetName = [System.IO.Path]::GetFileName($assetPath)
-            $assetUrl = "$uploadUrl`?name=$([Uri]::EscapeDataString($assetName))"
-            Invoke-RestMethod -Method Post -Uri $assetUrl -Headers $headers `
-              -ContentType 'application/octet-stream' -InFile $assetPath | Out-Null
-          }
-          $publishBody = @{ draft = $false; prerelease = $false } | ConvertTo-Json
-          Invoke-RestMethod -Method Patch -Uri $release.url -Headers $headers `
-            -ContentType 'application/json' -Body $publishBody | Out-Null
+          $installer = "dist/installer/TransferCove-Setup-$($env:TRANSFER_COVE_VERSION).exe"
+          ./.github/scripts/publish-release.ps1 -Tag $env:GITHUB_REF_NAME `
+            -InstallerPath $installer -ChecksumPath "$installer.sha256"
       - name: Upload installer diagnostics
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

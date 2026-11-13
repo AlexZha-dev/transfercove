@@ -50,6 +50,10 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: ./.github/scripts/test-smoke-installer.ps1
+      - name: Test release publication handling
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./.github/scripts/test-publish-release.ps1
       - name: Prepare the test report directory
         run: python -c "from pathlib import Path; Path('test-results').mkdir(parents=True, exist_ok=True)"
       - name: Run unit, integration, and upload server smoke tests
