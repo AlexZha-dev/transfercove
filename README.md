@@ -1,6 +1,6 @@
 # TransferCove · showcase site
 
-The standalone product website for **TransferCove 0.2.3**. This branch contains the static site, not the desktop application.
+The standalone product website for **TransferCove**. This branch contains the static site, not the desktop application.
 
 > [!WARNING]
 > TransferCove has **no encryption or authentication**. Files are sent over plain HTTP. Use only a trusted, verified local network. Do not expose the receiver to the public internet or untrusted Wi-Fi.
@@ -39,13 +39,13 @@ Then open <http://127.0.0.1:8000/>. Stop the preview with `Ctrl+C`.
 | --- | --- |
 | `index.html` | Product copy, release links, security notice, screenshots, and page metadata |
 | `styles.css` | Responsive layout, visual design, keyboard focus, and reduced-motion support |
-| `script.js` | Optional screenshot viewer with keyboard navigation and focus restoration |
+| `script.js` | Automatic release version lookup and optional screenshot viewer |
 | `assets/` | Existing application icon and favicon |
 | `docs/images/` | Original, uncropped application screenshots |
 | `.nojekyll` | Direct static-file publishing with GitHub Pages |
 
-The site has no remote fonts, analytics, CDN dependencies, upload endpoint, or runtime API calls. Navigation, FAQs, release links, and full-size screenshot links work without JavaScript. With JavaScript enabled, screenshots also open in a dialog: use the arrow buttons or arrow keys to navigate and Escape to close it.
+The site has no remote fonts, analytics, CDN dependencies, or upload endpoint. Navigation, FAQs, release links, and full-size screenshot links work without JavaScript. With JavaScript enabled, screenshots also open in a dialog: use the arrow buttons or arrow keys to navigate and Escape to close it.
 
-For a new release, update the displayed version in `index.html` and this README. Keep release buttons pointed at the repository’s `/releases` page; do not guess build asset names. Keep security wording consistent with the application README and preserve the warning at the top of the page.
+The displayed version updates automatically from `https://api.github.com/repos/AlexZha-dev/transfercove/releases/latest` using the latest stable release tag. Successful responses are cached in `localStorage` for one hour; a fresh cache avoids another API request. Requests time out after five seconds and are not retried automatically. Without JavaScript, or if the API fails and no fresh cache is available, the page shows neutral "Latest release" labels. Blocked storage does not prevent the lookup. No token is used, and new releases require no manual version edits. Keep release buttons pointed at the repository’s `/releases` page; do not guess build asset names. Keep security wording consistent with the application README and preserve the warning at the top of the page.
 
 Before publishing, check a narrow mobile viewport and a desktop viewport, open all screenshots, and confirm that relative assets load under `/transfercove/`. Commit only site files; local application data and build artifacts are not part of this branch.

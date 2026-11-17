@@ -1,3 +1,55 @@
+// Release metadata is optional; the static release links always work.
+(async () => {
+  const labels = [...document.querySelectorAll("[data-release-version]")];
+  if (!labels.length) return;
+
+  const cacheKey = "transfercove:latest-release:v1";
+  const cacheLifetime = 60 * 60 * 1000;
+  const validTag = (tag) => typeof tag === "string" && tag.trim().length > 0;
+
+  function showVersion(tag) {
+    const version = tag.trim().replace(/^v/i, "");
+    labels.forEach((label) => {
+      label.textContent = label.dataset.releaseVersion === "download"
+        ? `VERSION ${version}` : `v${version}`;
+    });
+  }
+
+  try {
+    const cached = JSON.parse(localStorage.getItem(cacheKey));
+    const age = Date.now() - cached?.fetchedAt;
+    if (validTag(cached?.tag) && Number.isFinite(cached?.fetchedAt)
+      && age >= 0 && age < cacheLifetime) {
+      showVersion(cached.tag);
+      return;
+    }
+  } catch {
+    // Storage can be blocked or contain invalid data. Fetch without it.
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const response = await fetch("https://api.github.com/repos/AlexZha-dev/transfercove/releases/latest", {
+      signal: controller.signal,
+      headers: { Accept: "application/vnd.github+json" },
+    });
+    if (!response.ok) return;
+    const release = await response.json();
+    if (!validTag(release?.tag_name) || release.draft || release.prerelease) return;
+    showVersion(release.tag_name);
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify({ tag: release.tag_name, fetchedAt: Date.now() }));
+    } catch {
+      // The version still displays when storage is unavailable or full.
+    }
+  } catch {
+    // Keep neutral labels on network errors, invalid JSON, or timeout.
+  } finally {
+    clearTimeout(timeout);
+  }
+})();
+
 // Progressive enhancement: without JavaScript, screenshots open as normal links.
 (() => {
   const dialog = document.querySelector(".image-dialog");
