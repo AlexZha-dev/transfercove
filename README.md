@@ -30,7 +30,7 @@ The computer receives files. A phone, tablet, or another computer sends them fro
 | On the desktop | In the browser | Inside your network |
 | :--- | :--- | :--- |
 | Start and stop the server with one click | Drag and drop or select multiple files | Upload directly to the receiving computer |
-| See server status, address, port, and save location | Track the queue, per-file progress, and total speed | Store files on disk with metadata in SQLite |
+| See server status, address, port, and save location | Track the queue, per-file progress, and total speed | Save files to disk without storing upload history |
 | Configure connection, storage, and auto-start behavior | Stop an active upload or cancel the queue | Work without cloud storage |
 
 The dark green interface adapts to the window size. The sending device only needs a browser — there is no app to install on it.
