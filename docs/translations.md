@@ -17,7 +17,7 @@ include every category used by the language. The browser chooses the form
 using `Intl.PluralRules`.
 
 Run `poetry run python -m app.core.localization` and the localization tests
-before submitting a translation. The validator runs in CI and on release; it
+before submitting a translation. The validator runs in CI; it
 rejects invalid catalogs and an outdated browser fallback. After changing the
 English web messages, regenerate that fallback with
 `poetry run python -m app.core.localization --write-web-fallback` and commit

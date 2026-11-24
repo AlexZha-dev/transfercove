@@ -26,9 +26,11 @@ Installers are retained for 14 days; reports and logs for 7 days. Download them 
 
 ## Stable releases and desktop updates
 
-The separate [release workflow](../.github/workflows/release.yml) runs when a `v*` tag is pushed. It accepts only stable `vX.Y.Z` tags that exactly match the version in `pyproject.toml` and the application configuration. The workflow runs tests and linting on Windows and Linux, builds the Windows app with the locked dependencies, verifies the packaged bundle, and smoke-tests fresh installs in both installer scopes. For 0.3.3, a separate upgrade test downloads the published 0.2.3 installer and verifies the SHA-256 pinned in [upgrade-baseline.json](../.github/upgrade-baseline.json). It initializes 0.2.3, seeds a saved preference and received file, upgrades to 0.3.3, and launches the upgraded application before checking its version, settings, received file, directory, and registry scope. The old release supports only AllUsers. A separate CurrentUser reinstall checks scope preservation using the same argument generator as the app; that scope test also runs in PR CI. These are separate checks: a same-version reinstall is not evidence of an upgrade between versions. Installer diagnostics are uploaded even when a release check fails. Update the baseline version, asset URL, SHA-256, and supported scope together when selecting a newer baseline for a future release.
+Stable releases are built, verified, and published manually. Pushing a `v*` tag does not run a release workflow. PR CI continues to build and test development installers; its artifacts are separate from the manually prepared release assets.
 
-After all checks pass, the workflow creates a draft GitHub Release, attaches `TransferCove-Setup-X.Y.Z.exe` and its `TransferCove-Setup-X.Y.Z.exe.sha256` checksum, then publishes the release. If asset upload or publication fails, the release remains a draft and is not offered by the updater. GitHub-generated release notes are shown in the app. The workflow uses the repository `GITHUB_TOKEN`; only the release job has `contents: write` permission.
+Build from the final tagged `main` commit using the local verification commands below. Run the Python checks, verify the Flet bundle, and smoke-test the installer in both installation scopes. Use the previous-release upgrade test below to check preservation of settings and received files. Update [upgrade-baseline.json](../.github/upgrade-baseline.json) when selecting a newer baseline.
+
+The installer build script produces `TransferCove-Setup-X.Y.Z.exe` and `TransferCove-Setup-X.Y.Z.exe.sha256`. The checksum contains the SHA-256 hash and installer filename. Create a draft GitHub Release for the matching `vX.Y.Z` tag, attach both files, and add release notes. Verify the version and attachments before publishing the draft as a stable release. Drafts and prereleases are not offered by the updater. Generate the checksum from the final installer again if the binary changes, including after signing.
 
 The packaged Windows app checks published stable releases in the background at startup, no more than once per 24 hours. Users can run **Settings → About this app → Check for updates** at any time. The app selects the highest stable semantic version, requires the matching installer and checksum assets, and verifies the installer before offering to install it. The user confirms before TransferCove closes and starts the normal interactive installer. GitHub/network failures and missing assets appear as status messages; they do not prevent app use. Update checks run outside the UI event loop.
 
@@ -38,11 +40,11 @@ After confirmation, the updater verifies SHA-256 again while holding a Windows f
 
 Ordinary feature and fix PRs target `dev`; they do not each need a version increase. Increase the version once while preparing a release, and include that change in the release PR from `dev` to `main`. The current project version is **0.3.3**. Before 1.0, this project uses PATCH increments for fixes and MINOR increments for new functionality; see [Semantic Versioning](https://semver.org/).
 
-Keep `pyproject.toml`, `AppConfig.version`, `.env.example`, and the README version in sync. Local `.env` overrides such as `APP__VERSION` should also be updated when running from source. After merging the release PR, create the matching `v0.3.3` tag on the final `main` commit and push that tag. Merging alone does not publish a release; the tag push starts the release workflow. Published versions and tags must not be reused for changed binaries.
+Keep `pyproject.toml`, `AppConfig.version`, `.env.example`, and the README version in sync. Local `.env` overrides such as `APP__VERSION` should also be updated when running from source. After merging the release PR, create the matching `v0.3.3` tag on the final `main` commit and push that tag. Neither merging nor pushing the tag publishes a release. Follow the manual build and publication procedure above. Published versions and tags must not be reused for changed binaries.
 
 Version 0.3.0 adds stable GitHub release checks, explicit installation confirmation, repeated checksum verification, and preservation of install scope and application data. Existing 0.2.3 users install 0.3.0 manually once; subsequent compatible releases can be offered by the updater.
 
-The release workflow rejects version mismatches and does not publish a Release before installer checks succeed. The generated installer is unsigned; configure Windows code signing before treating these public releases as signed distributions.
+Before publishing, verify that the tag, `pyproject.toml`, application version, and installer version match, and that all local checks succeed. The generated installer is unsigned; configure Windows code signing before treating these public releases as signed distributions.
 
 ## Local verification
 
@@ -51,6 +53,7 @@ Install Poetry 2.5.1 and use Python 3.14. From the repository root:
 ```text
 poetry install --with dev
 poetry check --lock
+poetry run python -m app.core.localization
 poetry run ruff check app tests tools main.py alembic
 poetry run ruff format --check app tests tools main.py alembic
 python -c "from pathlib import Path; Path('test-results').mkdir(parents=True, exist_ok=True)"
@@ -66,9 +69,10 @@ $env:PIP_CONSTRAINT = (Resolve-Path test-results/flet-runtime-constraints.txt).P
 poetry run flet build windows --yes --no-rich-output --python-version 3.14 --build-version (poetry version --short)
 Remove-Item Env:PIP_CONSTRAINT
 poetry run python tools/verify_flet_bundle.py --site-packages build/site-packages
-./.github/scripts/build-installer.ps1 -InstallerName TransferCove-local-test
-./.github/scripts/smoke-installer.ps1 -InstallerPath dist/installer/TransferCove-local-test.exe -InstallMode CurrentUser -TestUpgradePreservesData
-./.github/scripts/smoke-installer.ps1 -InstallerPath dist/installer/TransferCove-local-test.exe -InstallMode AllUsers
+poetry run python tools/verify_locale_bundle.py
+./.github/scripts/build-installer.ps1
+./.github/scripts/smoke-installer.ps1 -InstallerPath "dist/installer/TransferCove-Setup-$(poetry version --short).exe" -InstallMode CurrentUser -TestUpgradePreservesData
+./.github/scripts/smoke-installer.ps1 -InstallerPath "dist/installer/TransferCove-Setup-$(poetry version --short).exe" -InstallMode AllUsers
 ```
 
 Run PowerShell as administrator for the `/ALLUSERS` check. If the local PowerShell execution policy blocks scripts, invoke them through `powershell -NoProfile -ExecutionPolicy Bypass -File <script-path> <arguments>`. This applies only to that process. Use a clean Windows account or runner for installer smoke tests; the script refuses to run while TransferCove is open or an existing per-user or machine-wide installation is registered.

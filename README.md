@@ -185,7 +185,7 @@ GitHub Actions runs dependency review, linting, formatting checks, and the full 
 
 After the checks pass, CI builds the Windows app and installer, silently installs it in temporary directories as both the current user and all users, and verifies desktop initialization and clean uninstallation. Pull requests also receive dependency review, and Dependabot proposes weekly dependency and workflow updates. Verified installers are available in the workflow run's **Artifacts** section as `TransferCove-test-<commit-sha>`. See [the CI guide](docs/ci.md) for local commands, diagnostics, and required PR checks.
 
-Stable Windows releases use the separate tag-triggered workflow. Publishing a `vX.Y.Z` tag builds and smoke-tests the installer, checks that the tag and application version match `pyproject.toml`, and publishes the installer with a SHA-256 checksum and generated release notes. The packaged Windows app checks GitHub Releases in the background at most once every 24 hours; **Settings → About this app** also has a manual check. Updates are downloaded only from stable releases, verified against the published checksum, and installed only after confirmation. Network failures do not prevent normal app use. See the [release and update guide](docs/ci.md#stable-releases-and-desktop-updates).
+Stable Windows releases are built and published manually. Pushing a `vX.Y.Z` tag does not build or publish a release. Build and verify the installer locally, then attach it and its SHA-256 checksum to a GitHub Release. The packaged Windows app checks stable GitHub Releases at most once every 24 hours and also supports a manual check in **Settings ? About this app**. Updates are verified against the published checksum and installed only after confirmation. See the [manual release and update guide](docs/ci.md#stable-releases-and-desktop-updates).
 
 ### Project structure
 
@@ -229,7 +229,7 @@ Flet reads the application icon from `assets/icon.png`; the build entry point, a
 
 ### Windows installer and license notices
 
-The repository includes an Inno Setup script at [`installer/windows/TransferCove.iss`](installer/windows/TransferCove.iss). The build script reads the version from `pyproject.toml` and passes it to Inno Setup. After building the Flet application, run these commands from PowerShell to create the installer under `dist/installer/`:
+The repository includes an Inno Setup script at [`installer/windows/TransferCove.iss`](installer/windows/TransferCove.iss). The build script reads the version from `pyproject.toml` and passes it to Inno Setup. After building the Flet application, run these commands from PowerShell to create the installer and its `.exe.sha256` checksum under `dist/installer/` (see the [CI guide](docs/ci.md#local-verification) for locked dependency builds and smoke tests):
 
 ```text
 poetry install --with dev,build

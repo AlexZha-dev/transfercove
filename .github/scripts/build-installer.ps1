@@ -29,7 +29,11 @@ try {
     if (-not (Test-Path -LiteralPath $installerPath -PathType Leaf)) {
         throw "Installer was not generated: $installerPath"
     }
+    $checksumPath = "$installerPath.sha256"
+    $hash = (Get-FileHash -LiteralPath $installerPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    [System.IO.File]::WriteAllText($checksumPath, "$hash  $([System.IO.Path]::GetFileName($installerPath))`n", [System.Text.Encoding]::ASCII)
     Write-Output "Installer: $installerPath"
+    Write-Output "Checksum: $checksumPath"
     if ($env:GITHUB_OUTPUT) {
         "installer-path=$installerPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
     }
