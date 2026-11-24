@@ -51,6 +51,17 @@ company = ""
 copyright = "Copyright (c) 2026 AlexZha-dev"
 icon_background = "#07100C"
 
+[tool.flet.windows.boot_screen]
+name = "flet"
+
+[tool.flet.windows.boot_screen.flet]
+theme_mode = "dark"
+bgcolor_dark = "#07100C"
+spinner_color_dark = "#6EF0A0"
+spinner_size = 32
+text_color_dark = "#F1FBF4"
+startup_message = "Starting TransferCove…"
+
 # Flet's build template pins jni 1.0.0, which is incompatible with newer
 # jni_flutter releases. Remove this override when upgrading to a fixed Flet.
 [tool.flet.flutter.pubspec.dependency_overrides]
