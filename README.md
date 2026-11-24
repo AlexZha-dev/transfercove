@@ -227,6 +227,10 @@ poetry run flet build windows --yes --build-version 0.3.3
 
 Flet reads the application icon from `assets/icon.png`; the build entry point, artifact name, and local-data exclusions are configured in `pyproject.toml`. A Windows build also requires Flutter and the C++ desktop tools from Visual Studio. See the [Flet Windows publishing guide](https://flet.dev/docs/publish/windows/) for the platform prerequisites.
 
+Windows builds are configured to show a dark boot screen with a green animated indicator and **Starting TransferCove…** while Python and the application initialize. Flet replaces it with the first application page after saved settings are loaded. The boot screen appears once Flutter starts; it does not cover the time before the Flutter engine starts. Changes to these settings require rebuilding the Windows package.
+
+To verify startup behavior, launch the rebuilt executable on both a first and a subsequent run. Check that the indicator animates, the main interface replaces it without an added delay or white flash, and the first-run security notice appears on the ready interface. Also check closing the window during startup and startup-error display. These visual checks complement the installer smoke tests in the [CI guide](docs/ci.md#local-verification).
+
 ### Windows installer and license notices
 
 The repository includes an Inno Setup script at [`installer/windows/TransferCove.iss`](installer/windows/TransferCove.iss). The build script reads the version from `pyproject.toml` and passes it to Inno Setup. After building the Flet application, run these commands from PowerShell to create the installer under `dist/installer/`:
