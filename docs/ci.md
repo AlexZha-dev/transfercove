@@ -60,7 +60,7 @@ python -c "from pathlib import Path; Path('test-results').mkdir(parents=True, ex
 poetry run pytest --junitxml=test-results/pytest.xml
 ```
 
-To build and test the installer on Windows with Visual Studio C++ tools and Inno Setup 6 installed, use PowerShell:
+To build and test the installer on Windows with Visual Studio C++ tools and Inno Setup 6.3 or newer installed, use PowerShell:
 
 ```powershell
 poetry install --with dev,build

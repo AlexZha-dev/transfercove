@@ -1,4 +1,4 @@
-; TransferCove Windows installer for Inno Setup 6+
+; TransferCove Windows installer for Inno Setup 6.3+
 ; Build the Flet application first:
 ;   poetry run flet build windows --yes --build-version (poetry version --short)
 ; Then compile this file with Inno Setup Compiler.
@@ -6,18 +6,26 @@
 #define MyAppName "TransferCove"
 #define MyAppExeName "TransferCove.exe"
 #define BuildDir "..\..\build\windows"
-#ifndef MyAppId
-  #define MyAppId "{A6F4C3F3-2DA6-4AF4-9E2F-7C0A0200BEEF}"
+#if Ver < EncodeVer(6, 3, 0)
+  #error "Inno Setup 6.3 or newer is required"
 #endif
-; Reject extra quotes or other accidental changes to the uninstall registry key.
-#if Len(MyAppId) != 38 || Copy(MyAppId, 1, 1) != "{" || Copy(MyAppId, 38, 1) != "}"
-  #error "MyAppId must be a GUID enclosed in braces, without quotes"
+#ifdef MyAppId
+  #error "TransferCove uses a fixed AppId for update discovery"
 #endif
+#define AppBinary AddBackslash(SourcePath) + BuildDir + "\" + MyAppExeName
+#define Major
+#define Minor
+#define Patch
+#define BuildNumber
+#if !FileExists(AppBinary) || GetVersionComponents(AppBinary, Major, Minor, Patch, BuildNumber) == ""
+  #error "Build TransferCove.exe with Windows version information before compiling Setup"
+#endif
+; Flutter stores the CI build number in the fourth numeric component.
+#define BinaryRelease Str(Major) + "." + Str(Minor) + "." + Str(Patch)
 #ifndef MyAppVersion
-  #define MyAppVersion GetStringFileInfo(BuildDir + "\" + MyAppExeName, "ProductVersion")
-#endif
-#if MyAppVersion == ""
-  #error "Build the application first or pass /DMyAppVersion to ISCC"
+  #define MyAppVersion BinaryRelease
+#elif MyAppVersion != BinaryRelease
+  #error "Project version differs from the built TransferCove.exe; rebuild the application"
 #endif
 #define MyAppPublisher "AlexZha-dev"
 #define MyAppURL "https://github.com/AlexZha-dev/transfercove"
@@ -26,9 +34,10 @@
 #endif
 
 [Setup]
-AppId={#StringChange(MyAppId, '{', '{{')}
+AppId={{A6F4C3F3-2DA6-4AF4-9E2F-7C0A0200BEEF}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
+VersionInfoVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
@@ -36,6 +45,7 @@ AppUpdatesURL={#MyAppURL}/releases
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
+MinVersion=10.0
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
