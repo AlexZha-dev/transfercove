@@ -12,6 +12,7 @@
 #ifdef MyAppId
   #error "TransferCove uses a fixed AppId for update discovery"
 #endif
+#define TransferCoveId "{A6F4C3F3-2DA6-4AF4-9E2F-7C0A0200BEEF}"
 #define AppBinary AddBackslash(SourcePath) + BuildDir + "\" + MyAppExeName
 #define Major
 #define Minor
@@ -34,7 +35,7 @@
 #endif
 
 [Setup]
-AppId={{A6F4C3F3-2DA6-4AF4-9E2F-7C0A0200BEEF}
+AppId={#StringChange(TransferCoveId, '{', '{{')}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 VersionInfoVersion={#MyAppVersion}
@@ -79,3 +80,34 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
+
+[Code]
+const
+  UninstallKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{#TransferCoveId}_is1';
+
+function NewerRelease(Version: Int64): Boolean;
+begin
+  { Ignore Flutter's CI build number when repairing the same release. }
+  Result := ComparePackedVersion(Version and (not Int64($FFFF)),
+    PackVersionComponents({#Major}, {#Minor}, {#Patch}, 0)) > 0;
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  DisplayVersion: String;
+  InstalledVersion: Int64;
+begin
+  Result := '';
+  if RegQueryStringValue(HKA, UninstallKey, 'DisplayVersion', DisplayVersion) then
+  begin
+    if not StrToVersion(DisplayVersion, InstalledVersion) then
+      Result := 'Cannot read the installed TransferCove version: ' + DisplayVersion
+    else if NewerRelease(InstalledVersion) then
+      Result := 'A newer version of TransferCove (' + DisplayVersion +
+        ') is already installed. Setup cannot install version {#MyAppVersion} over it.';
+  end;
+  if (Result = '') and GetPackedVersion(ExpandConstant('{app}\{#MyAppExeName}'), InstalledVersion) then
+    if NewerRelease(InstalledVersion) then
+      Result := 'The selected directory contains a newer TransferCove executable (' +
+        VersionToStr(InstalledVersion) + ').';
+end;
