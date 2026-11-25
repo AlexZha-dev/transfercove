@@ -96,26 +96,68 @@ begin
     PackVersionComponents({#Major}, {#Minor}, {#Patch}, 0)) > 0;
 end;
 
+function ReadDigits(Value: String; var Cursor: Integer): String;
+var
+  Start: Integer;
+begin
+  Start := Cursor;
+  while Cursor <= Length(Value) do begin
+    if (Value[Cursor] < '0') or (Value[Cursor] > '9') then Break;
+    Inc(Cursor);
+  end;
+  Result := Copy(Value, Start, Cursor - Start);
+end;
+
+function ParseDisplayRelease(Value: String; var Version: Int64): Boolean;
+var
+  Cursor, Index, Part: Integer;
+  Release: String;
+begin
+  Result := False;
+  Cursor := 1;
+  for Index := 1 to 3 do begin
+    if Index > 1 then begin
+      if Copy(Value, Cursor, 1) <> '.' then Exit;
+      Inc(Cursor);
+    end;
+    Part := StrToIntDef(ReadDigits(Value, Cursor), -1);
+    if (Part < 0) or (Part > 65535) then Exit;
+  end;
+  Release := Copy(Value, 1, Cursor - 1);
+  if Cursor <= Length(Value) then begin
+    if (Value[Cursor] <> '.') and (Value[Cursor] <> '+') then Exit;
+    Inc(Cursor);
+    if ReadDigits(Value, Cursor) = '' then Exit;
+  end;
+  Result := (Cursor > Length(Value)) and StrToVersion(Release, Version);
+end;
+
 function CheckInstalledVersion: String;
 var
   DisplayVersion, InstallLocation: String;
-  InstalledVersion: Int64;
+  RegisteredVersion, ExeVersion: Int64;
+  HasExeVersion: Boolean;
 begin
   Result := '';
   UpgradingInPlace := RegQueryStringValue(HKA, UninstallKey, 'InstallLocation', InstallLocation) and
     (CompareText(AddBackslash(InstallLocation), AddBackslash(ExpandConstant('{app}'))) = 0);
-  if RegQueryStringValue(HKA, UninstallKey, 'DisplayVersion', DisplayVersion) then
+  HasExeVersion := GetPackedVersion(ExpandConstant('{app}\{#MyAppExeName}'), ExeVersion);
+  if RegKeyExists(HKA, UninstallKey) then
   begin
-    if not StrToVersion(DisplayVersion, InstalledVersion) then
-      Result := 'Cannot read the installed TransferCove version: ' + DisplayVersion
-    else if NewerRelease(InstalledVersion) then
-      Result := 'A newer version of TransferCove (' + DisplayVersion +
-        ') is already installed. Setup cannot install version {#MyAppVersion} over it.';
+    if RegQueryStringValue(HKA, UninstallKey, 'DisplayVersion', DisplayVersion) and
+        ParseDisplayRelease(DisplayVersion, RegisteredVersion) then begin
+      if NewerRelease(RegisteredVersion) then
+        Result := 'A newer version of TransferCove (' + DisplayVersion +
+          ') is already installed. Setup cannot install version {#MyAppVersion} over it.';
+    end else if not (UpgradingInPlace and HasExeVersion) then
+      Result := 'Cannot determine the release of the registered TransferCove installation.'
+    else
+      Log('Using the registered installation executable to determine its release.');
   end;
-  if (Result = '') and GetPackedVersion(ExpandConstant('{app}\{#MyAppExeName}'), InstalledVersion) then
-    if NewerRelease(InstalledVersion) then
+  if (Result = '') and HasExeVersion then
+    if NewerRelease(ExeVersion) then
       Result := 'The selected directory contains a newer TransferCove executable (' +
-        VersionToStr(InstalledVersion) + ').';
+        VersionToStr(ExeVersion) + ').';
 end;
 
 function GetFileAttributesW(Path: String): LongWord;

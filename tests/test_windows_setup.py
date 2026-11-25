@@ -191,3 +191,50 @@ def test_cleanup_failures_and_repair(package, target):
     assert (target / "modified.dat").read_bytes() == b"my changes"
     assert (target / "personal.txt").read_text() == "keep"
     assert (external / "old.dat").read_bytes() == b"published"
+
+
+@pytest.mark.parametrize(
+    ("display", "exe", "same_directory", "expected_code"),
+    [
+        ("0.3.2+42", "0.3.2", True, 0),
+        ("0.3.3+42", "0.3.3", True, 0),
+        ("0.3.3.42", "0.3.3", True, 0),
+        ("0.3.4+1", "0.3.2", True, 7),
+        ("0.3.2", "0.3.4", True, 7),
+        ("unknown", "0.3.2", True, 0),
+        ("unknown", "0.3.2", False, 7),
+        ("0.3.2+42suffix", None, True, 7),
+        ("0.3.2.0.99", None, True, 7),
+        (None, None, True, 7),
+    ],
+)
+def test_version_sources(package, target, display, exe, same_directory, expected_code):
+    import winreg
+
+    with winreg.OpenKey(
+        winreg.HKEY_CURRENT_USER,
+        package.key,
+        0,
+        winreg.KEY_WRITE | winreg.KEY_WOW64_64KEY,
+    ) as key:
+        if display is None:
+            winreg.DeleteValue(key, "DisplayVersion")
+        else:
+            winreg.SetValueEx(key, "DisplayVersion", 0, winreg.REG_SZ, display)
+        if not same_directory:
+            winreg.SetValueEx(
+                key, "InstallLocation", 0, winreg.REG_SZ, str(target.parent / "other")
+            )
+    binary = target / "TransferCove.exe"
+    if exe:
+        shutil.copyfile(package.versions[exe], binary)
+    else:
+        binary.unlink()
+    code, log = install(package, target)
+    assert code == expected_code, log
+    if expected_code == 0:
+        assert binary.read_bytes() == package.versions["0.3.3"].read_bytes()
+    elif exe:
+        assert binary.read_bytes() == package.versions[exe].read_bytes()
+    else:
+        assert not binary.exists()
