@@ -14,6 +14,8 @@ The Flet build template's `jni` override is replaced in `pyproject.toml` to keep
 
 The installer smoke test installs and uninstalls to separate temporary directories in both `/CURRENTUSER` and `/ALLUSERS` modes. It requires an uninstaller and an installation registry entry in the selected scope, checks required files, launches the installed executable hidden, waits for the desktop initialization message in Flet's console log, and verifies the process stays alive and creates its settings database. It also checks that uninstall removes the application executable and registry entry. The test does not automatically acknowledge the security notice or expose a transfer server. The documented standalone upload-server flow, including migrations, is tested separately in pytest. Temporary data is removed after checks, and existing console logs are preserved during local runs. Windows reports a zero `MainWindowHandle` for hidden processes, so readiness uses the completed desktop initialization reported by the application. See [Microsoft's API documentation](https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.process.mainwindowhandle).
 
+The current-user smoke test checks downgrade rejection and same-version repair. The all-users test installs the previous release pinned in `.github/upgrade-baseline.json` after verifying its SHA-256, then upgrades to the candidate. It checks that files retired from the old bundle disappear and a user-created file in the installation directory survives.
+
 The workflow uses only the `pull_request` event, read-only repository permissions, and no signing or deployment secrets. Actions are pinned to commit SHAs. Installer artifacts are uploaded only after both smoke tests succeed.
 
 ## Artifacts and diagnostics

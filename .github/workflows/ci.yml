@@ -129,7 +129,13 @@ jobs:
           INSTALLER_PATH: ${{ steps.installer.outputs.installer-path }}
         run: |
           ./.github/scripts/smoke-installer.ps1 -InstallerPath $env:INSTALLER_PATH -InstallMode CurrentUser -TestUpgradePreservesData -LogDirectory test-results/installer/current-user
-          ./.github/scripts/smoke-installer.ps1 -InstallerPath $env:INSTALLER_PATH -InstallMode AllUsers -LogDirectory test-results/installer/all-users
+          $baseline = Get-Content .github/upgrade-baseline.json -Raw | ConvertFrom-Json
+          $previous = Join-Path $env:RUNNER_TEMP 'TransferCove-baseline.exe'
+          Invoke-WebRequest -Uri $baseline.installer_url -OutFile $previous
+          if ((Get-FileHash -LiteralPath $previous -Algorithm SHA256).Hash -ine $baseline.sha256) {
+            throw 'Previous release installer checksum mismatch'
+          }
+          ./.github/scripts/smoke-installer.ps1 -InstallerPath $env:INSTALLER_PATH -InstallMode $baseline.install_mode -PreviousInstallerPath $previous -PreviousVersion $baseline.version -LogDirectory test-results/installer/all-users
       - name: Upload verified installer
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

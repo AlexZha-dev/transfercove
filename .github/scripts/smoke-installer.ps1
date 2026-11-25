@@ -1,7 +1,6 @@
 param(
     [Parameter(Mandatory = $true)]
     [string]$InstallerPath,
-    [guid]$AppId = 'A6F4C3F3-2DA6-4AF4-9E2F-7C0A0200BEEF',
     [ValidateSet('CurrentUser', 'AllUsers')]
     [string]$InstallMode = 'CurrentUser',
     # Reinstall the candidate to exercise CurrentUser scope preservation.
@@ -18,7 +17,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 # Avoid replacing an existing user's or machine-wide installation during local runs.
-$uninstallKeyName = '{' + $AppId.ToString().ToUpperInvariant() + '}_is1'
+$uninstallKeyName = '{A6F4C3F3-2DA6-4AF4-9E2F-7C0A0200BEEF}_is1'
 $uninstallKeys = @(
     "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\$uninstallKeyName",
     "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\$uninstallKeyName"
@@ -181,6 +180,18 @@ try {
     }
 
     Assert-InstallationRegistration $initialVersion
+    if ($PreviousInstallerPath) {
+        # Snapshot only files installed by the old package, before its first launch.
+        $bundle = (Resolve-Path (Join-Path $PSScriptRoot '../../build/windows')).Path
+        $retiredFiles = @(Get-ChildItem -LiteralPath $installDirectory -Recurse -File | Where-Object {
+            $relative = $_.FullName.Substring($installDirectory.Length + 1)
+            $relative -notmatch '^unins\d+\.(exe|dat|msg)$' -and
+                $relative -notin @('LICENSE', 'THIRD-PARTY-NOTICES.txt', 'SECURITY-NOTICE.txt') -and
+                -not (Test-Path -LiteralPath (Join-Path $bundle $relative) -PathType Leaf)
+        })
+        $userFile = Join-Path $installDirectory 'user-created.txt'
+        [System.IO.File]::WriteAllText($userFile, 'keep this file')
+    }
     Start-SmokeApplication $initialVersion ([bool]$PreviousInstallerPath) 'initial'
 
     if ($testPreservation) {
@@ -200,6 +211,24 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Could not determine existing installation arguments' }
         $arguments = $argumentsJson | ConvertFrom-Json
         if ($arguments.scope -ne $InstallMode) { throw 'Updater selected the wrong install scope' }
+        if ($TestUpgradePreservesData -and -not $PreviousInstallerPath) {
+            # The disposable registration belongs to the install just created above.
+            $newer = ([version]$ExpectedVersion).Major + 1
+            $downgradeLog = Join-Path $logs 'blocked-downgrade.log'
+            try {
+                Set-ItemProperty -LiteralPath $expectedUninstallKey -Name DisplayVersion -Value "$newer.0.0"
+                $blockedArguments = $arguments.command_line + ' /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /LOG="' + $downgradeLog + '"'
+                $setupProcess = Start-Process -FilePath $installer -ArgumentList $blockedArguments -PassThru -WindowStyle Hidden
+                if (-not $setupProcess.WaitForExit(120000)) { throw 'Downgrade check timed out' }
+                if ($setupProcess.ExitCode -ne 7 -or
+                    -not (Select-String -LiteralPath $downgradeLog -SimpleMatch 'A newer version of TransferCove')) {
+                    throw 'Installer did not refuse the downgrade before copying files'
+                }
+            }
+            finally {
+                Set-ItemProperty -LiteralPath $expectedUninstallKey -Name DisplayVersion -Value $initialVersion
+            }
+        }
         $upgradeLog = Join-Path $logs 'upgrade-install.log'
         $upgradeArguments = $arguments.command_line + ' /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /LOG="' + $upgradeLog + '"'
         $setupProcess = Start-Process -FilePath $installer -ArgumentList $upgradeArguments `
@@ -207,6 +236,16 @@ try {
         if (-not $setupProcess.WaitForExit(120000)) { throw 'Upgrade installer timed out' }
         if ($setupProcess.ExitCode -ne 0) { throw "Upgrade installer exited with $($setupProcess.ExitCode)" }
         Assert-InstallationRegistration $ExpectedVersion
+        if ($PreviousInstallerPath) {
+            foreach ($retired in $retiredFiles) {
+                if (Test-Path -LiteralPath $retired.FullName -PathType Leaf) {
+                    throw "Upgrade left a retired package file behind: $($retired.FullName)"
+                }
+            }
+            if ([System.IO.File]::ReadAllText($userFile) -cne 'keep this file') {
+                throw 'Upgrade changed a user-created file in the installation directory'
+            }
+        }
         foreach ($filename in @('TransferCove.exe', 'LICENSE', 'THIRD-PARTY-NOTICES.txt', 'SECURITY-NOTICE.txt')) {
             if (-not (Test-Path -LiteralPath (Join-Path $installDirectory $filename) -PathType Leaf)) {
                 throw "Upgraded installation is missing $filename"
