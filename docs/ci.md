@@ -38,6 +38,12 @@ After confirmation, the updater verifies SHA-256 again while holding a Windows f
 
 ### Versioning and release procedure
 
+Windows Setup requires Windows 10 or newer. It reads the release version from the first three numeric version components of the packaged EXE. The fourth component is the Flutter build number. The build fails if the packaged version differs from the Poetry version.
+
+During release preparation, run `python tools/record_windows_payload.py build/windows` on the verified final bundle and commit any additions to `installer/windows/released-payload.txt`. This cumulative inventory starts with the published 0.2.3, 0.3.2 and 0.3.3 installers. Keep entries from older releases so users can skip versions. Setup compiles a cleanup list from historical paths absent in the candidate. After copying files into a registered installation, it removes those retired files and their empty directories. Paths crossing reparse points are skipped.
+
+Setup blocks installation over a newer release and allows repair of the same release. This check applies to installers built with the guard. An older, already published installer still follows its original behavior.
+
 Ordinary feature and fix PRs target `dev`; they do not each need a version increase. Increase the version once while preparing a release, and include that change in the release PR from `dev` to `main`. The current project version is **0.3.3**. Before 1.0, this project uses PATCH increments for fixes and MINOR increments for new functionality; see [Semantic Versioning](https://semver.org/).
 
 Keep `pyproject.toml`, `AppConfig.version`, `.env.example`, and the README version in sync. Local `.env` overrides such as `APP__VERSION` should also be updated when running from source. After merging the release PR, create the matching `v0.3.3` tag on the final `main` commit and push that tag. Neither merging nor pushing the tag publishes a release. Follow the manual build and publication procedure above. Published versions and tags must not be reused for changed binaries.

@@ -85,6 +85,9 @@ Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: no
 const
   UninstallKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{#TransferCoveId}_is1';
 
+var
+  UpgradingInPlace: Boolean;
+
 function NewerRelease(Version: Int64): Boolean;
 begin
   { Ignore Flutter's CI build number when repairing the same release. }
@@ -94,10 +97,12 @@ end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
-  DisplayVersion: String;
+  DisplayVersion, InstallLocation: String;
   InstalledVersion: Int64;
 begin
   Result := '';
+  UpgradingInPlace := RegQueryStringValue(HKA, UninstallKey, 'InstallLocation', InstallLocation) and
+    (CompareText(AddBackslash(InstallLocation), AddBackslash(ExpandConstant('{app}'))) = 0);
   if RegQueryStringValue(HKA, UninstallKey, 'DisplayVersion', DisplayVersion) then
   begin
     if not StrToVersion(DisplayVersion, InstalledVersion) then
@@ -110,4 +115,54 @@ begin
     if NewerRelease(InstalledVersion) then
       Result := 'The selected directory contains a newer TransferCove executable (' +
         VersionToStr(InstalledVersion) + ').';
+end;
+
+function GetFileAttributesW(Path: String): LongWord;
+  external 'GetFileAttributesW@kernel32.dll stdcall';
+
+procedure RemoveRetiredPath(RelativePath: String; IsDirectory: Boolean);
+var
+  Root, Path, Parent: String;
+  Attributes: LongWord;
+begin
+  Root := ExpandConstant('{app}');
+  Path := AddBackslash(Root) + RelativePath;
+  Parent := Path;
+  repeat
+    Attributes := GetFileAttributesW(Parent);
+    if Attributes = $FFFFFFFF then Exit;
+    if (Attributes and $400) <> 0 then begin
+      Log('Skipping reparse point during upgrade cleanup: ' + Parent);
+      Exit;
+    end;
+    if CompareText(Parent, Root) = 0 then Break;
+    Parent := ExtractFileDir(Parent);
+  until False;
+  if IsDirectory then
+    RemoveDir(Path)  { Only removes empty directories. }
+  else if FileExists(Path) and not DeleteFile(Path) then
+    RaiseException('Could not remove the retired TransferCove file: ' + Path);
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if (CurStep <> ssPostInstall) or not UpgradingInPlace then Exit;
+  { Compile only paths that this release has retired. }
+#define Inventory FileOpen(AddBackslash(SourcePath) + "released-payload.txt")
+#if !Inventory
+  #error "Cannot read the released Windows payload inventory"
+#endif
+#sub EmitCleanup
+  #define Entry FileRead(Inventory)
+  #if Copy(Entry, Len(Entry), 1) == "\"
+    #define Folder Copy(Entry, 1, Len(Entry) - 1)
+    #if !DirExists(BuildDir + "\" + Folder)
+  RemoveRetiredPath('{#Folder}', True);
+    #endif
+  #elif !FileExists(BuildDir + "\" + Entry)
+  RemoveRetiredPath('{#Entry}', False);
+  #endif
+#endsub
+#for {0; !FileEof(Inventory); 0} EmitCleanup
+#expr FileClose(Inventory)
 end;
