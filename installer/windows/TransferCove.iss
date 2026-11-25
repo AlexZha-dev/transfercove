@@ -120,7 +120,7 @@ end;
 function GetFileAttributesW(Path: String): LongWord;
   external 'GetFileAttributesW@kernel32.dll stdcall';
 
-procedure RemoveRetiredPath(RelativePath: String; IsDirectory: Boolean);
+procedure RemoveRetiredPath(RelativePath, Hashes: String);
 var
   Root, Path, Parent: String;
   Attributes: LongWord;
@@ -138,10 +138,14 @@ begin
     if CompareText(Parent, Root) = 0 then Break;
     Parent := ExtractFileDir(Parent);
   until False;
-  if IsDirectory then
+  if Hashes = '' then
     RemoveDir(Path)  { Only removes empty directories. }
-  else if FileExists(Path) and not DeleteFile(Path) then
-    RaiseException('Could not remove the retired TransferCove file: ' + Path);
+  else if FileExists(Path) then begin
+    if Pos(',' + Lowercase(GetSHA256OfFile(Path)) + ',', ',' + Hashes + ',') = 0 then
+      Log('Preserving file with unrecognized content: ' + Path)
+    else if not DeleteFile(Path) then
+      RaiseException('Could not remove the retired TransferCove file: ' + Path);
+  end;
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
@@ -153,14 +157,16 @@ begin
   #error "Cannot read the released Windows payload inventory"
 #endif
 #sub EmitCleanup
-  #define Entry FileRead(Inventory)
+  #define Line FileRead(Inventory)
+  #define Separator Pos("|", Line)
+  #define Entry Copy(Line, 1, Separator - 1)
   #if Copy(Entry, Len(Entry), 1) == "\"
     #define Folder Copy(Entry, 1, Len(Entry) - 1)
     #if !DirExists(BuildDir + "\" + Folder)
-  RemoveRetiredPath('{#Folder}', True);
+  RemoveRetiredPath('{#Folder}', '');
     #endif
   #elif !FileExists(BuildDir + "\" + Entry)
-  RemoveRetiredPath('{#Entry}', False);
+  RemoveRetiredPath('{#Entry}', '{#Copy(Line, Separator + 1, Len(Line))}');
   #endif
 #endsub
 #for {0; !FileEof(Inventory); 0} EmitCleanup

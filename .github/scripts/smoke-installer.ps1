@@ -191,6 +191,7 @@ try {
         })
         $userFile = Join-Path $installDirectory 'user-created.txt'
         [System.IO.File]::WriteAllText($userFile, 'keep this file')
+        $modifiedFile = if ($retiredFiles.Count -ge 2) { $retiredFiles[0].FullName }
     }
     Start-SmokeApplication $initialVersion ([bool]$PreviousInstallerPath) 'initial'
 
@@ -202,6 +203,9 @@ try {
         [System.IO.File]::WriteAllText($receivedFile, $receivedContent)
         Stop-Process -Id $applicationProcess.Id -Force
         if (-not $applicationProcess.WaitForExit(10000)) { throw 'App did not stop before upgrade' }
+        if ($PreviousInstallerPath -and $modifiedFile) {
+            [System.IO.File]::WriteAllText($modifiedFile, 'locally modified')
+        }
 
         & $PythonPath $helper seed --database (Join-Path $dataDirectory 'desktop-settings.db')
         if ($LASTEXITCODE -ne 0) { throw 'Could not seed the pre-upgrade settings' }
@@ -238,9 +242,13 @@ try {
         Assert-InstallationRegistration $ExpectedVersion
         if ($PreviousInstallerPath) {
             foreach ($retired in $retiredFiles) {
+                if ($retired.FullName -eq $modifiedFile) { continue }
                 if (Test-Path -LiteralPath $retired.FullName -PathType Leaf) {
                     throw "Upgrade left a retired package file behind: $($retired.FullName)"
                 }
+            }
+            if ($modifiedFile -and [System.IO.File]::ReadAllText($modifiedFile) -cne 'locally modified') {
+                throw 'Upgrade changed a modified file at a historical package path'
             }
             if ([System.IO.File]::ReadAllText($userFile) -cne 'keep this file') {
                 throw 'Upgrade changed a user-created file in the installation directory'
