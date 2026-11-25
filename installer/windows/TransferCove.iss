@@ -79,7 +79,7 @@ Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent; Check: CleanupSucceeded
 
 [Code]
 const
@@ -87,6 +87,7 @@ const
 
 var
   UpgradingInPlace: Boolean;
+  CleanupErrors: String;
 
 function NewerRelease(Version: Int64): Boolean;
 begin
@@ -95,7 +96,7 @@ begin
     PackVersionComponents({#Major}, {#Minor}, {#Patch}, 0)) > 0;
 end;
 
-function PrepareToInstall(var NeedsRestart: Boolean): String;
+function CheckInstalledVersion: String;
 var
   DisplayVersion, InstallLocation: String;
   InstalledVersion: Int64;
@@ -120,37 +121,81 @@ end;
 function GetFileAttributesW(Path: String): LongWord;
   external 'GetFileAttributesW@kernel32.dll stdcall';
 
-procedure RemoveRetiredPath(RelativePath, Hashes: String);
+function CreateFileW(Path: String; Access, Share, Security, Creation, Flags: LongWord;
+  Template: THandle): THandle; external 'CreateFileW@kernel32.dll stdcall';
+function CloseHandle(Handle: THandle): Boolean; external 'CloseHandle@kernel32.dll stdcall';
+function RemoveDirectoryW(Path: String): Boolean; external 'RemoveDirectoryW@kernel32.dll stdcall';
+function DeleteFileW(Path: String): Boolean; external 'DeleteFileW@kernel32.dll stdcall';
+
+function SafeAttributes(Path: String): LongWord;
 var
-  Root, Path, Parent: String;
-  Attributes: LongWord;
+  Parent: String;
+  Error: LongInt;
 begin
-  Root := ExpandConstant('{app}');
-  Path := AddBackslash(Root) + RelativePath;
-  Parent := Path;
-  repeat
-    Attributes := GetFileAttributesW(Parent);
-    if Attributes = $FFFFFFFF then Exit;
-    if (Attributes and $400) <> 0 then begin
-      Log('Skipping reparse point during upgrade cleanup: ' + Parent);
-      Exit;
-    end;
-    if CompareText(Parent, Root) = 0 then Break;
-    Parent := ExtractFileDir(Parent);
-  until False;
-  if Hashes = '' then
-    RemoveDir(Path)  { Only removes empty directories. }
-  else if FileExists(Path) then begin
-    if Pos(',' + Lowercase(GetSHA256OfFile(Path)) + ',', ',' + Hashes + ',') = 0 then
-      Log('Preserving file with unrecognized content: ' + Path)
-    else if not DeleteFile(Path) then
-      RaiseException('Could not remove the retired TransferCove file: ' + Path);
+  Result := $FFFFFFFF;
+  Parent := ExtractFileDir(Path);
+  if (Length(Parent) > 0) and (Length(Parent) < Length(Path)) then
+    if SafeAttributes(Parent) = $FFFFFFFF then Exit;
+  Result := GetFileAttributesW(Path);
+  if Result = $FFFFFFFF then begin
+    Error := DLLGetLastError;
+    if (Error <> 2) and (Error <> 3) then RaiseException(SysErrorMessage(Error));
+  end else if (Result and $400) <> 0 then begin
+    Log('Preserving reparse point: ' + Path);
+    Result := $FFFFFFFF;
   end;
 end;
 
-procedure CurStepChanged(CurStep: TSetupStep);
+procedure ProcessRetiredPath(Path, Hashes: String; Preflight: Boolean);
+var
+  Attributes: LongWord;
+  Handle: THandle;
+  Error: LongInt;
 begin
-  if (CurStep <> ssPostInstall) or not UpgradingInPlace then Exit;
+  Attributes := SafeAttributes(Path);
+  if Attributes = $FFFFFFFF then Exit;
+  if Hashes = '' then begin
+    if Preflight or ((Attributes and $10) = 0) then Exit;
+    if not RemoveDirectoryW(Path) then begin
+      Error := DLLGetLastError;
+      if (Error <> 145) and (Error <> 2) and (Error <> 3) then
+        RaiseException(SysErrorMessage(Error));
+    end;
+    Exit;
+  end;
+  if (Attributes and $10) <> 0 then Exit;
+  if Pos(',' + Lowercase(GetSHA256OfFile(Path)) + ',', ',' + Hashes + ',') = 0 then begin
+    Log('Preserving file with unrecognized content: ' + Path);
+    Exit;
+  end;
+  if Preflight then begin
+    if (Attributes and 1) <> 0 then RaiseException('File is read-only');
+    { Request DELETE access without marking the file for deletion. }
+    Handle := CreateFileW(Path, $10000, 7, 0, 3, $00200000, 0);
+    if Handle = THandle(-1) then RaiseException(SysErrorMessage(DLLGetLastError));
+    CloseHandle(Handle);
+  end else if not DeleteFileW(Path) then
+    RaiseException(SysErrorMessage(DLLGetLastError));
+end;
+
+procedure CheckPath(RelativePath, Hashes: String; Preflight: Boolean);
+var
+  Path, Detail: String;
+begin
+  Path := ExpandConstant('{app}\') + RelativePath;
+  try
+    ProcessRetiredPath(Path, Hashes, Preflight);
+  except
+    Detail := Path + ': ' + GetExceptionMessage;
+    Log('Upgrade cleanup failed: ' + Detail);
+    CleanupErrors := CleanupErrors + #13#10 + Detail;
+  end;
+end;
+
+procedure CheckRetiredFiles(Preflight: Boolean);
+begin
+  CleanupErrors := '';
+  if not UpgradingInPlace then Exit;
   { Compile only paths that this release has retired. }
 #define Inventory FileOpen(AddBackslash(SourcePath) + "released-payload.txt")
 #if !Inventory
@@ -163,12 +208,40 @@ begin
   #if Copy(Entry, Len(Entry), 1) == "\"
     #define Folder Copy(Entry, 1, Len(Entry) - 1)
     #if !DirExists(BuildDir + "\" + Folder)
-  RemoveRetiredPath('{#Folder}', '');
+  CheckPath('{#Folder}', '', Preflight);
     #endif
   #elif !FileExists(BuildDir + "\" + Entry)
-  RemoveRetiredPath('{#Entry}', '{#Copy(Line, Separator + 1, Len(Line))}');
+  CheckPath('{#Entry}', '{#Copy(Line, Separator + 1, Len(Line))}', Preflight);
   #endif
 #endsub
 #for {0; !FileEof(Inventory); 0} EmitCleanup
 #expr FileClose(Inventory)
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  Result := CheckInstalledVersion;
+  if Result <> '' then Exit;
+  CheckRetiredFiles(True);
+  if CleanupErrors <> '' then
+    Result := 'Cannot prepare the upgrade. Resolve these file errors and retry:' + CleanupErrors;
+end;
+
+function CleanupSucceeded: Boolean;
+begin
+  Result := CleanupErrors = '';
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep <> ssPostInstall then Exit;
+  CheckRetiredFiles(False);
+  if not CleanupSucceeded then
+    SuppressibleMsgBox('The new version was installed, but cleanup is incomplete. ' +
+      'Resolve these file errors and run Setup again:' + CleanupErrors, mbError, MB_OK, IDOK);
+end;
+
+function GetCustomSetupExitCode: Integer;
+begin
+  if CleanupSucceeded then Result := 0 else Result := 20;
 end;
