@@ -51,6 +51,8 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=commandline
+; Restart Manager runs before ssPostInstall. Launch only through the checked [Run] entry.
+RestartApplications=no
 OutputDir=..\..\dist\installer
 OutputBaseFilename={#InstallerName}
 SetupIconFile=..\..\assets\icon.ico
