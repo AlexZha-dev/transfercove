@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 from pathlib import Path
 
 from app.core.db import Database
@@ -12,6 +13,36 @@ from app.core.settings import (
     UvicornConfig,
 )
 from app.services.settings_service import SettingsService
+
+
+def test_slow_detection_leaves_event_loop_and_database_available(tmp_path, monkeypatch):
+    async def scenario():
+        database = Database(f"sqlite+aiosqlite:///{(tmp_path / 'slow.db').as_posix()}")
+        loop = asyncio.get_running_loop()
+        started = asyncio.Event()
+        release = threading.Event()
+
+        def detect():
+            loop.call_soon_threadsafe(started.set)
+            assert release.wait(5), "event loop or database blocked by address lookup"
+            return "10.0.0.7"
+
+        monkeypatch.setattr("app.services.settings_service.get_lan_ipv4", detect)
+        monkeypatch.delenv("UVICORN__HOST", raising=False)
+        startup = asyncio.create_task(
+            SettingsService(database).initialize(Settings(_env_file=None))
+        )
+        try:
+            await asyncio.wait_for(started.wait(), timeout=5)
+            async with database.transaction(immediate=True):
+                release.set()
+            assert (await startup).uvicorn.host == "10.0.0.7"
+        finally:
+            release.set()
+            await asyncio.gather(startup, return_exceptions=True)
+            await database.dispose()
+
+    asyncio.run(scenario())
 
 
 def test_settings_service_initializes_and_persists_preferences(tmp_path: Path) -> None:

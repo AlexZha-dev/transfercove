@@ -1,3 +1,4 @@
+import asyncio
 from pathlib import Path
 from typing import cast
 
@@ -26,6 +27,7 @@ class SettingsService:
         await self.database.create_table(cast(Table, UploadLimitsRecord.__table__))
         await self.database.create_table(cast(Table, SettingsMigration.__table__))
 
+        address = await self._detect_address_if_needed(fallback)
         async with self.database.transaction(immediate=True) as session:
             limits = await session.get(UploadLimitsRecord, 1)
             if limits is None:
@@ -44,7 +46,6 @@ class SettingsService:
 
             if migration is None:
                 if record.uvicorn_host == "127.0.0.1" and not explicit_host:
-                    address = get_lan_ipv4()
                     if address:
                         record.uvicorn_host = address
                     else:
@@ -72,6 +73,21 @@ class SettingsService:
                     ),
                 }
             )
+
+    async def _detect_address_if_needed(self, fallback: Settings) -> str | None:
+        async with self.database.session() as session:
+            if await session.get(SettingsMigration, LAN_ADDRESS_MIGRATION_ID):
+                return None
+            record = await session.get(ApplicationSettingsRecord, 1)
+            if record is None:
+                if "host" in fallback.uvicorn.model_fields_set:
+                    return None
+            elif record.uvicorn_host != "127.0.0.1":
+                return None
+
+        # Another process may finish the migration while the network lookup runs.
+        # initialize() rechecks the marker and host under the write lock.
+        return await asyncio.to_thread(get_lan_ipv4)
 
     async def save(self, settings: Settings) -> Settings:
         async with self.database.transaction(immediate=True) as session:
