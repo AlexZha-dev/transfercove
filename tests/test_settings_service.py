@@ -80,3 +80,50 @@ def test_upload_limits_persist_with_existing_settings_database(tmp_path: Path) -
         assert reloaded.app.title == fallback.app.title
 
     asyncio.run(scenario())
+
+
+def test_lan_address_migration_retries_and_preserves_manual_choice(
+    tmp_path, monkeypatch
+):
+    from app.models.application_settings import ApplicationSettingsRecord
+
+    async def scenario():
+        database = Database(f"sqlite+aiosqlite:///{(tmp_path / 'old.db').as_posix()}")
+        await database.create_table(ApplicationSettingsRecord.__table__)
+        async with database.transaction() as session:
+            session.add(ApplicationSettingsRecord.from_settings(Settings()))
+        service = SettingsService(database)
+        monkeypatch.setattr("app.services.settings_service.get_lan_ipv4", lambda: None)
+        first = await service.initialize(Settings())
+        assert first.uvicorn.host == "127.0.0.1"
+        assert service.lan_detection_pending
+        await service.save(first)
+        monkeypatch.setattr(
+            "app.services.settings_service.get_lan_ipv4", lambda: "192.168.1.42"
+        )
+        migrated = await service.initialize(Settings())
+        assert migrated.uvicorn.host == "192.168.1.42"
+        migrated.uvicorn.host = "127.0.0.1"
+        await service.save(migrated)
+        assert (await service.initialize(Settings())).uvicorn.host == "127.0.0.1"
+        await database.dispose()
+
+    asyncio.run(scenario())
+
+
+def test_new_settings_detect_lan_and_respect_explicit_host(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "app.services.settings_service.get_lan_ipv4", lambda: "192.168.1.42"
+    )
+
+    async def scenario(name, fallback):
+        database = Database(f"sqlite+aiosqlite:///{(tmp_path / name).as_posix()}")
+        result = await SettingsService(database).initialize(fallback)
+        await database.dispose()
+        return result.uvicorn.host
+
+    assert asyncio.run(scenario("new.db", Settings())) == "192.168.1.42"
+    explicit = Settings(uvicorn=UvicornConfig(host="127.0.0.1"))
+    assert asyncio.run(scenario("explicit.db", explicit)) == "127.0.0.1"
+    monkeypatch.setenv("UVICORN__HOST", "127.0.0.1")
+    assert asyncio.run(scenario("env.db", Settings())) == "127.0.0.1"

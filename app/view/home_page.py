@@ -535,7 +535,11 @@ class HomePage(LocalizedView):
             else self.tr("on_another_device_open_this_computer_s_lan_35a938")
         )
 
-        if not loopback and self.controller.advertised_host == "127.0.0.1":
+        if (
+            self.controller.settings_store.service.lan_detection_pending
+            or not loopback
+            and self.controller.advertised_host == "127.0.0.1"
+        ):
             self.network_hint.value = self.tr(
                 "the_lan_address_could_not_be_detected_chec_3c92ee"
             )
