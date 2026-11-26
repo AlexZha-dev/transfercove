@@ -7,7 +7,7 @@ from app.core.db import Database
 from app.core.network import get_lan_ipv4
 from app.core.settings import Settings
 from app.models.application_settings import ApplicationSettingsRecord
-from app.models.settings_migration import SettingsMigration
+from app.models.settings_migration import LAN_ADDRESS_MIGRATION_ID, SettingsMigration
 from app.models.upload_limits import UploadLimitsRecord
 from app.repository.settings import SettingsRepository
 
@@ -26,14 +26,14 @@ class SettingsService:
         await self.database.create_table(cast(Table, UploadLimitsRecord.__table__))
         await self.database.create_table(cast(Table, SettingsMigration.__table__))
 
-        async with self.database.transaction() as session:
+        async with self.database.transaction(immediate=True) as session:
             limits = await session.get(UploadLimitsRecord, 1)
             if limits is None:
                 limits = UploadLimitsRecord.from_limits(fallback.upload_limits)
                 session.add(limits)
             repository = SettingsRepository(session)
             record = await repository.get()
-            migration = await session.get(SettingsMigration, 1)
+            migration = await session.get(SettingsMigration, LAN_ADDRESS_MIGRATION_ID)
 
             if record is None:
                 record = ApplicationSettingsRecord.from_settings(fallback)
@@ -50,7 +50,7 @@ class SettingsService:
                     else:
                         self.lan_detection_pending = True
                 if not self.lan_detection_pending:
-                    session.add(SettingsMigration(id=1))
+                    session.add(SettingsMigration(id=LAN_ADDRESS_MIGRATION_ID))
 
             record.app_version = fallback.app.version
 
@@ -74,11 +74,13 @@ class SettingsService:
             )
 
     async def save(self, settings: Settings) -> Settings:
-        async with self.database.transaction() as session:
+        async with self.database.transaction(immediate=True) as session:
             if (
                 not self.lan_detection_pending or settings.uvicorn.host != "127.0.0.1"
-            ) and await session.get(SettingsMigration, 1) is None:
-                session.add(SettingsMigration(id=1))
+            ) and await session.get(
+                SettingsMigration, LAN_ADDRESS_MIGRATION_ID
+            ) is None:
+                session.add(SettingsMigration(id=LAN_ADDRESS_MIGRATION_ID))
             repository = SettingsRepository(session)
             await repository.save(ApplicationSettingsRecord.from_settings(settings))
             limits = await session.get(UploadLimitsRecord, 1)
