@@ -156,5 +156,15 @@ def test_new_settings_detect_lan_and_respect_explicit_host(tmp_path, monkeypatch
     assert asyncio.run(scenario("new.db", Settings())) == "192.168.1.42"
     explicit = Settings(uvicorn=UvicornConfig(host="127.0.0.1"))
     assert asyncio.run(scenario("explicit.db", explicit)) == "127.0.0.1"
+    monkeypatch.delenv("UVICORN__HOST", raising=False)
+    example = (Path(__file__).resolve().parents[1] / ".env.example").read_text()
+    dotenv = tmp_path / ".env"
+    dotenv.write_text(example)
+    assert (
+        asyncio.run(scenario("template.db", Settings(_env_file=dotenv)))
+        == "192.168.1.42"
+    )
+    dotenv.write_text(example.replace("# UVICORN__HOST=", "UVICORN__HOST="))
+    assert asyncio.run(scenario("local.db", Settings(_env_file=dotenv))) == "127.0.0.1"
     monkeypatch.setenv("UVICORN__HOST", "127.0.0.1")
     assert asyncio.run(scenario("env.db", Settings())) == "127.0.0.1"

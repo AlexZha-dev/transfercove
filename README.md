@@ -111,10 +111,10 @@ Copy-Item .env.example .env
 cp .env.example .env
 ```
 
-Important defaults:
+On first desktop launch, leaving `UVICORN__HOST` unset lets TransferCove detect a local IPv4 address. Uncomment the host setting below to restrict the server to this computer. The standalone server defaults to loopback.
 
 ```dotenv
-UVICORN__HOST=127.0.0.1
+# UVICORN__HOST=127.0.0.1
 UVICORN__PORT=8000
 TRANSMITTER__STORAGE_DIR=.data/files
 # Legacy history cleanup only; not required for uploads
