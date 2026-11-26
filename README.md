@@ -78,7 +78,7 @@ Desktop preferences are stored between launches in a separate settings database.
 ## Send from another device
 
 1. Connect the devices to the same local network.
-2. In **Settings → Connection**, click **Use current LAN address** and save the settings. The detected IPv4 address is inserted automatically.
+2. Check the detected IPv4 address in **Settings → Connection**. On first launch, TransferCove selects a local address automatically. If no address was available or the network has changed, click **Use current LAN address** and save the settings.
 3. Start the server. The dashboard shows the shareable address and provides **Copy link** and **QR code** actions.
 4. On the other device, scan the QR code or open the copied link.
 5. Add files and select **Start upload**. They will appear in the folder configured under **Storage**.
