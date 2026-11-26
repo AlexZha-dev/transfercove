@@ -14,7 +14,9 @@ The Flet build template's `jni` override is replaced in `pyproject.toml` to keep
 
 The installer smoke test installs and uninstalls to separate temporary directories in both `/CURRENTUSER` and `/ALLUSERS` modes. It requires an uninstaller and an installation registry entry in the selected scope, checks required files, launches the installed executable hidden, waits for the desktop initialization message in Flet's console log, and verifies the process stays alive and creates its settings database. It also checks that uninstall removes the application executable and registry entry. The test does not automatically acknowledge the security notice or expose a transfer server. The documented standalone upload-server flow, including migrations, is tested separately in pytest. Temporary data is removed after checks, and existing console logs are preserved during local runs. Windows reports a zero `MainWindowHandle` for hidden processes, so readiness uses the completed desktop initialization reported by the application. See [Microsoft's API documentation](https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.process.mainwindowhandle).
 
-The workflow uses only the `pull_request` event, read-only repository permissions, and no signing or deployment secrets. Actions are pinned to commit SHAs. Installer artifacts are uploaded only after both smoke tests succeed.
+The candidate is installed from scratch in both scopes. The current-user smoke test also checks downgrade rejection and same-version repair. A separate upgrade test verifies the SHA-256 of the published release pinned in `.github/upgrade-baseline.json`, installs it, then upgrades to the candidate. It checks that original retired files disappear and that locally modified files, received files and settings survive.
+
+The workflow uses only the `pull_request` event, read-only repository permissions, and no signing or deployment secrets. Actions are pinned to commit SHAs. Installer artifacts are uploaded after all three smoke scenarios succeed.
 
 ## Artifacts and diagnostics
 
@@ -38,6 +40,14 @@ After confirmation, the updater verifies SHA-256 again while holding a Windows f
 
 ### Versioning and release procedure
 
+Windows Setup requires Windows 10 or newer. It reads the release version from the first three numeric version components of the packaged EXE. The fourth component is the Flutter build number. The build fails if the packaged version differs from the Poetry version.
+
+During release preparation, run `python tools/record_windows_payload.py build/windows` on the verified final bundle and commit the updated inventory in `installer/windows/released-payload.txt`. It contains SHA-256 hashes from the published 0.2.3, 0.3.2 and 0.3.3 installers and accumulates hashes when files change. Keep historical entries so users can skip releases. Setup includes only retired paths in its cleanup list. It checks file contents before removal, preserves unfamiliar content, skips reparse points and removes directories only when empty.
+
+Setup compares the first three numeric components of the registered version and installed EXE. It accepts legacy Flutter versions such as `0.3.2+42`. A newer release blocks installation. If the registered version is unreadable, Setup can recover the release from the EXE in the registered directory. Already published installers follow their original behavior.
+
+If a retired file is locked during preparation, Setup identifies it and stops before copying the new bundle (exit code 7). If cleanup fails after copying, Setup logs the affected paths, suppresses application launch and exits with code 20. Close the process holding the file or resolve the reported access error, then run the same installer again. Successful repair returns 0.
+
 Ordinary feature and fix PRs target `dev`; they do not each need a version increase. Increase the version once while preparing a release, and include that change in the release PR from `dev` to `main`. The current project version is **0.3.3**. Before 1.0, this project uses PATCH increments for fixes and MINOR increments for new functionality; see [Semantic Versioning](https://semver.org/).
 
 Keep `pyproject.toml`, `AppConfig.version`, `.env.example`, and the README version in sync. Local `.env` overrides such as `APP__VERSION` should also be updated when running from source. After merging the release PR, create the matching `v0.3.3` tag on the final `main` commit and push that tag. Neither merging nor pushing the tag publishes a release. Follow the manual build and publication procedure above. Published versions and tags must not be reused for changed binaries.
@@ -60,7 +70,7 @@ python -c "from pathlib import Path; Path('test-results').mkdir(parents=True, ex
 poetry run pytest --junitxml=test-results/pytest.xml
 ```
 
-To build and test the installer on Windows with Visual Studio C++ tools and Inno Setup 6 installed, use PowerShell:
+To build and test the installer on Windows with Visual Studio C++ tools and Inno Setup 6.3 or newer installed, use PowerShell:
 
 ```powershell
 poetry install --with dev,build
