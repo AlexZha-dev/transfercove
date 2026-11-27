@@ -48,9 +48,9 @@ Setup compares the first three numeric components of the registered version and 
 
 If a retired file is locked during preparation, Setup identifies it and stops before copying the new bundle (exit code 7). If cleanup fails after copying, Setup logs the affected paths, suppresses application launch and exits with code 20. Close the process holding the file or resolve the reported access error, then run the same installer again. Successful repair returns 0.
 
-Ordinary feature and fix PRs target `dev`; they do not each need a version increase. Increase the version once while preparing a release, and include that change in the release PR from `dev` to `main`. The current project version is **0.3.3**. Before 1.0, this project uses PATCH increments for fixes and MINOR increments for new functionality; see [Semantic Versioning](https://semver.org/).
+Ordinary feature and fix PRs target `dev`. Increase the version once while preparing a release and include that change in the release PR from `dev` to `main`. Before 1.0, this project uses PATCH increments for fixes and MINOR increments for new functionality. See [Semantic Versioning](https://semver.org/).
 
-Keep `pyproject.toml`, `AppConfig.version`, `.env.example`, and the README version in sync. Local `.env` overrides such as `APP__VERSION` should also be updated when running from source. After merging the release PR, create the matching `v0.3.3` tag on the final `main` commit and push that tag. Neither merging nor pushing the tag publishes a release. Follow the manual build and publication procedure above. Published versions and tags must not be reused for changed binaries.
+Read the project version with `poetry version --short`. Keep `pyproject.toml`, `AppConfig.version`, `.env.example`, and the third-party notices in sync. If you set `APP__VERSION` in a local `.env`, update it before running from source. After merging the release PR, tag the final `main` commit with the matching `vX.Y.Z` tag, push it, and follow the manual publication procedure above. Use a new version and tag for any changes to a published binary.
 
 Version 0.3.0 adds stable GitHub release checks, explicit installation confirmation, repeated checksum verification, and preservation of install scope and application data. Existing 0.2.3 users install 0.3.0 manually once; subsequent compatible releases can be offered by the updater.
 
@@ -74,20 +74,45 @@ To build and test the installer on Windows with Visual Studio C++ tools and Inno
 
 ```powershell
 poetry install --with dev,build
+if ($LASTEXITCODE -ne 0) { throw 'Cannot install build dependencies' }
 poetry run python tools/export_flet_constraints.py --output test-results/flet-runtime-constraints.txt
+if ($LASTEXITCODE -ne 0) { throw 'Cannot export Poetry runtime constraints' }
+$version = poetry version --short
+if ($LASTEXITCODE -ne 0) { throw 'Cannot read project version' }
 $env:PIP_CONSTRAINT = (Resolve-Path test-results/flet-runtime-constraints.txt).Path
-poetry run flet build windows --yes --no-rich-output --python-version 3.14 --build-version (poetry version --short)
-Remove-Item Env:PIP_CONSTRAINT
+try {
+    poetry run flet build windows --yes --no-rich-output --python-version 3.14 --build-version $version
+    if ($LASTEXITCODE -ne 0) { throw 'Flet build failed' }
+}
+finally {
+    Remove-Item Env:PIP_CONSTRAINT
+}
 poetry run python tools/verify_flet_bundle.py --site-packages build/site-packages
+if ($LASTEXITCODE -ne 0) { throw 'Packaged dependencies differ from poetry.lock' }
 poetry run python tools/verify_locale_bundle.py
+if ($LASTEXITCODE -ne 0) { throw 'Packaged locale validation failed' }
 ./.github/scripts/build-installer.ps1
-./.github/scripts/smoke-installer.ps1 -InstallerPath "dist/installer/TransferCove-Setup-$(poetry version --short).exe" -InstallMode CurrentUser -TestUpgradePreservesData
-./.github/scripts/smoke-installer.ps1 -InstallerPath "dist/installer/TransferCove-Setup-$(poetry version --short).exe" -InstallMode AllUsers
+```
+
+The installer script defaults to the machine-wide Inno Setup 6 path. If you installed Inno Setup elsewhere, pass the actual compiler path. For example, for a machine-wide Inno Setup 7 installation, replace the last command with:
+
+```powershell
+./.github/scripts/build-installer.ps1 -CompilerPath "$env:ProgramFiles\Inno Setup 7\ISCC.exe"
+```
+
+From Command Prompt, run `powershell -NoProfile` first, then use the commands above. You can also compile [`TransferCove.iss`](../installer/windows/TransferCove.iss) in the Inno Setup GUI after building the Flet bundle. Use the PowerShell script to generate the release checksum alongside the installer.
+
+With `$version` set as above, run the smoke tests:
+
+```powershell
+$installer = "dist/installer/TransferCove-Setup-$version.exe"
+./.github/scripts/smoke-installer.ps1 -InstallerPath $installer -InstallMode CurrentUser -TestUpgradePreservesData
+./.github/scripts/smoke-installer.ps1 -InstallerPath $installer -InstallMode AllUsers
 ```
 
 Run PowerShell as administrator for the `/ALLUSERS` check. If the local PowerShell execution policy blocks scripts, invoke them through `powershell -NoProfile -ExecutionPolicy Bypass -File <script-path> <arguments>`. This applies only to that process. Use a clean Windows account or runner for installer smoke tests; the script refuses to run while TransferCove is open or an existing per-user or machine-wide installation is registered.
 
-To exercise the real version transition on a clean runner, first download and verify the baseline using `.github/upgrade-baseline.json`, then pass `-PreviousInstallerPath <verified-baseline.exe> -PreviousVersion 0.2.3 -ExpectedVersion 0.3.3 -InstallMode AllUsers` to `smoke-installer.ps1` along with the candidate `-InstallerPath`. Equal or decreasing version transitions are rejected. Use `-PythonPath <python.exe>` if Python 3.14 is not on PATH.
+To test an upgrade on a clean runner, download the installer specified in [`upgrade-baseline.json`](../.github/upgrade-baseline.json) and verify its SHA-256. Pass the verified installer as `-PreviousInstallerPath` and the baseline version and install mode as `-PreviousVersion` and `-InstallMode`. Pass the candidate as `-InstallerPath` and its version as `-ExpectedVersion $version`. The candidate must be newer than the baseline. Use `-PythonPath <python.exe>` if Python 3.14 is unavailable on PATH.
 
 After changing build/dev dependencies, run `poetry lock` and commit `pyproject.toml` and `poetry.lock` together. Flet CLI's version in the optional `build` group should match the runtime Flet version in the lock file.
 
