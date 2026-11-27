@@ -30,7 +30,7 @@ The computer receives files. A phone, tablet, or another computer sends them fro
 | On the desktop | In the browser | Inside your network |
 | :--- | :--- | :--- |
 | Start and stop the server with one click | Drag and drop or select multiple files | Upload directly to the receiving computer |
-| See server status, address, port, and save location | Track the queue, per-file progress, and total speed | Store files on disk with metadata in SQLite |
+| See server status, address, port, and save location | Track the queue, per-file progress, and total speed | Save files to disk without storing upload history |
 | Configure connection, storage, and auto-start behavior | Stop an active upload or cancel the queue | Work without cloud storage |
 
 The dark green interface adapts to the window size. The sending device only needs a browser — there is no app to install on it.
@@ -78,7 +78,7 @@ Desktop preferences are stored between launches in a separate settings database.
 ## Send from another device
 
 1. Connect the devices to the same local network.
-2. In **Settings → Connection**, click **Use current LAN address** and save the settings. The detected IPv4 address is inserted automatically.
+2. Check the detected IPv4 address in **Settings → Connection**. On first launch, TransferCove selects a local address automatically. If no address was available or the network has changed, click **Use current LAN address** and save the settings.
 3. Start the server. The dashboard shows the shareable address and provides **Copy link** and **QR code** actions.
 4. On the other device, scan the QR code or open the copied link.
 5. Add files and select **Start upload**. They will appear in the folder configured under **Storage**.
@@ -111,10 +111,10 @@ Copy-Item .env.example .env
 cp .env.example .env
 ```
 
-Important defaults:
+On first desktop launch, leaving `UVICORN__HOST` unset lets TransferCove detect a local IPv4 address. Uncomment the host setting below to restrict the server to this computer. The standalone server defaults to loopback.
 
 ```dotenv
-UVICORN__HOST=127.0.0.1
+# UVICORN__HOST=127.0.0.1
 UVICORN__PORT=8000
 TRANSMITTER__STORAGE_DIR=.data/files
 # Legacy history cleanup only; not required for uploads
@@ -185,7 +185,7 @@ GitHub Actions runs dependency review, linting, formatting checks, and the full 
 
 After the checks pass, CI builds the Windows app and installer, silently installs it in temporary directories as both the current user and all users, and verifies desktop initialization and clean uninstallation. Pull requests also receive dependency review, and Dependabot proposes weekly dependency and workflow updates. Verified installers are available in the workflow run's **Artifacts** section as `TransferCove-test-<commit-sha>`. See [the CI guide](docs/ci.md) for local commands, diagnostics, and required PR checks.
 
-Stable Windows releases use the separate tag-triggered workflow. Publishing a `vX.Y.Z` tag builds and smoke-tests the installer, checks that the tag and application version match `pyproject.toml`, and publishes the installer with a SHA-256 checksum and generated release notes. The packaged Windows app checks GitHub Releases in the background at most once every 24 hours; **Settings → About this app** also has a manual check. Updates are downloaded only from stable releases, verified against the published checksum, and installed only after confirmation. Network failures do not prevent normal app use. See the [release and update guide](docs/ci.md#stable-releases-and-desktop-updates).
+Stable Windows releases are built and published manually. Pushing a `vX.Y.Z` tag does not build or publish a release. Build and verify the installer locally, then attach it and its SHA-256 checksum to a GitHub Release. The packaged Windows app checks stable GitHub Releases at most once every 24 hours and also supports a manual check in **Settings ? About this app**. Updates are verified against the published checksum and installed only after confirmation. See the [manual release and update guide](docs/ci.md#stable-releases-and-desktop-updates).
 
 ### Project structure
 
@@ -227,9 +227,13 @@ poetry run flet build windows --yes --build-version 0.3.3
 
 Flet reads the application icon from `assets/icon.png`; the build entry point, artifact name, and local-data exclusions are configured in `pyproject.toml`. A Windows build also requires Flutter and the C++ desktop tools from Visual Studio. See the [Flet Windows publishing guide](https://flet.dev/docs/publish/windows/) for the platform prerequisites.
 
+Windows builds are configured to show a dark boot screen with a green animated indicator and **Starting TransferCove…** while Python and the application initialize. Flet replaces it with the first application page after saved settings are loaded. The boot screen appears once Flutter starts; it does not cover the time before the Flutter engine starts. Changes to these settings require rebuilding the Windows package.
+
+To verify startup behavior, launch the rebuilt executable on both a first and a subsequent run. Check that the indicator animates, the main interface replaces it without an added delay or white flash, and the first-run security notice appears on the ready interface. Also check closing the window during startup and startup-error display. These visual checks complement the installer smoke tests in the [CI guide](docs/ci.md#local-verification).
+
 ### Windows installer and license notices
 
-The repository includes an Inno Setup script at [`installer/windows/TransferCove.iss`](installer/windows/TransferCove.iss). The build script reads the version from `pyproject.toml` and passes it to Inno Setup. After building the Flet application, run these commands from PowerShell to create the installer under `dist/installer/`:
+The repository includes an Inno Setup script at [`installer/windows/TransferCove.iss`](installer/windows/TransferCove.iss). The build script reads the version from `pyproject.toml` and passes it to Inno Setup. After building the Flet application, run these commands from PowerShell to create the installer and its `.exe.sha256` checksum under `dist/installer/` (see the [CI guide](docs/ci.md#local-verification) for locked dependency builds and smoke tests):
 
 ```text
 poetry install --with dev,build
@@ -237,7 +241,19 @@ poetry run flet build windows --yes --python-version 3.14 --build-version (poetr
 ./.github/scripts/build-installer.ps1
 ```
 
-Opening the Inno Setup script directly also works: it reads the version from the built executable when no version override is supplied.
+Opening the Inno Setup script directly also works. It checks the project version against the built executable and stops with a rebuild instruction if they differ.
+
+From Command Prompt (cmd.exe), build using the project version and compile only if Flet succeeds:
+
+```cmd
+poetry install --with dev,build
+set "APP_VERSION="
+for /f "delims=" %v in ('poetry version --short') do set "APP_VERSION=%v"
+if not defined APP_VERSION echo Unable to read project version
+if defined APP_VERSION (poetry run flet build windows --yes --python-version 3.14 --build-version %APP_VERSION% && powershell -NoProfile -ExecutionPolicy Bypass -File .github\scripts\build-installer.ps1)
+```
+
+In a batch file, use `%%v` in place of `%v`. For reproducible dependency constraints and release checks, follow the CI guide.
 
 The installer displays the MIT license, installs [`LICENSE`](LICENSE) and [`THIRD-PARTY-NOTICES.txt`](THIRD-PARTY-NOTICES.txt), and preserves the dependency license metadata shipped in the Flet bundle. Release installers are currently unsigned; signing remains outside the repository so certificates and passwords are never committed. If dependency versions change during a rebuild, update `THIRD-PARTY-NOTICES.txt` from the final bundle before publishing the installer.
 
