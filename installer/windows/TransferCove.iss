@@ -6,6 +6,59 @@
 #define MyAppName "TransferCove"
 #define MyAppExeName "TransferCove.exe"
 #define BuildDir "..\..\build\windows"
+#define ProjectFile AddBackslash(SourcePath) + "..\..\pyproject.toml"
+#define ProjectVersion ""
+#define ProjectVersionCount 0
+#define InProject 0
+#define ProjectHandle
+#define ProjectLine
+#define Assignment
+#sub ReadProjectLine
+  #expr ProjectLine = Trim(FileRead(ProjectHandle))
+  #if Copy(ProjectLine, 1, 1) == "["
+    #expr InProject = ProjectLine == "[project]"
+  #elif InProject
+    #expr Assignment = Pos("=", ProjectLine)
+    #if Assignment > 0 && Trim(Copy(ProjectLine, 1, Assignment - 1)) == "version"
+      #expr ProjectVersionCount = ProjectVersionCount + 1
+      #expr ProjectVersion = Trim(Copy(ProjectLine, Assignment + 1, Len(ProjectLine)))
+    #endif
+  #endif
+#endsub
+; ISPP 6.3 leaves the default visibility private after a subroutine call.
+#for {ProjectHandle = FileOpen(ProjectFile); ProjectHandle && !FileEof(ProjectHandle); ""} ReadProjectLine
+#define public
+#if ProjectHandle
+  #call FileClose(ProjectHandle)
+#else
+  #error "Cannot read pyproject.toml"
+#endif
+#if ProjectVersionCount != 1 || Len(ProjectVersion) < 7 || Copy(ProjectVersion, 1, 1) != '"' || Copy(ProjectVersion, Len(ProjectVersion), 1) != '"'
+  #error "Expected one quoted X.Y.Z version in [project] in pyproject.toml"
+#endif
+#expr ProjectVersion = Copy(ProjectVersion, 2, Len(ProjectVersion) - 2)
+#define public VersionIndex
+#define public VersionDots 0
+#define public VersionComponentLength 0
+#define public VersionInvalid 0
+#sub CheckVersionCharacter
+  #if Copy(ProjectVersion, VersionIndex, 1) == "."
+    #if VersionComponentLength == 0
+      #expr VersionInvalid = 1
+    #endif
+    #expr VersionDots = VersionDots + 1
+    #expr VersionComponentLength = 0
+  #elif Pos(Copy(ProjectVersion, VersionIndex, 1), "0123456789") == 0
+    #expr VersionInvalid = 1
+  #else
+    #expr VersionComponentLength = VersionComponentLength + 1
+  #endif
+#endsub
+#for {VersionIndex = 1; VersionIndex <= Len(ProjectVersion); VersionIndex++} CheckVersionCharacter
+#define public
+#if VersionInvalid || VersionDots != 2 || VersionComponentLength == 0
+  #error "Project version must use numeric X.Y.Z format"
+#endif
 #if Ver < EncodeVer(6, 3, 0)
   #error "Inno Setup 6.3 or newer is required"
 #endif
@@ -23,10 +76,13 @@
 #endif
 ; Flutter stores the CI build number in the fourth numeric component.
 #define BinaryRelease Str(Major) + "." + Str(Minor) + "." + Str(Patch)
+#if ProjectVersion != BinaryRelease
+  #pragma error "Project version " + ProjectVersion + " differs from bundled EXE version " + BinaryRelease + ". Rebuild with: poetry run flet build windows --yes --build-version " + ProjectVersion
+#endif
 #ifndef MyAppVersion
-  #define MyAppVersion BinaryRelease
-#elif MyAppVersion != BinaryRelease
-  #error "Project version differs from the built TransferCove.exe; rebuild the application"
+  #define MyAppVersion ProjectVersion
+#elif MyAppVersion != ProjectVersion
+  #error "MyAppVersion differs from the project version"
 #endif
 #define MyAppPublisher "AlexZha-dev"
 #define MyAppURL "https://github.com/AlexZha-dev/transfercove"
