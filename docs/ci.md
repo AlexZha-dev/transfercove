@@ -14,7 +14,9 @@ The Flet build template's `jni` override is replaced in `pyproject.toml` to keep
 
 The installer smoke test installs and uninstalls to separate temporary directories in both `/CURRENTUSER` and `/ALLUSERS` modes. It requires an uninstaller and an installation registry entry in the selected scope, checks required files, launches the installed executable hidden, waits for the desktop initialization message in Flet's console log, and verifies the process stays alive and creates its settings database. It also checks that uninstall removes the application executable and registry entry. The test does not automatically acknowledge the security notice or expose a transfer server. The documented standalone upload-server flow, including migrations, is tested separately in pytest. Temporary data is removed after checks, and existing console logs are preserved during local runs. Windows reports a zero `MainWindowHandle` for hidden processes, so readiness uses the completed desktop initialization reported by the application. See [Microsoft's API documentation](https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.process.mainwindowhandle).
 
-The workflow uses only the `pull_request` event, read-only repository permissions, and no signing or deployment secrets. Actions are pinned to commit SHAs. Installer artifacts are uploaded only after both smoke tests succeed.
+The candidate is installed from scratch in both scopes. The current-user smoke test also checks downgrade rejection and same-version repair. A separate upgrade test verifies the SHA-256 of the published release pinned in `.github/upgrade-baseline.json`, installs it, then upgrades to the candidate. It checks that original retired files disappear and that locally modified files, received files and settings survive.
+
+The workflow uses only the `pull_request` event, read-only repository permissions, and no signing or deployment secrets. Actions are pinned to commit SHAs. Installer artifacts are uploaded after all three smoke scenarios succeed.
 
 ## Artifacts and diagnostics
 
@@ -26,9 +28,11 @@ Installers are retained for 14 days; reports and logs for 7 days. Download them 
 
 ## Stable releases and desktop updates
 
-The separate [release workflow](../.github/workflows/release.yml) runs when a `v*` tag is pushed. It accepts only stable `vX.Y.Z` tags that exactly match the version in `pyproject.toml` and the application configuration. The workflow runs tests and linting on Windows and Linux, builds the Windows app with the locked dependencies, verifies the packaged bundle, and smoke-tests fresh installs in both installer scopes. For 0.3.3, a separate upgrade test downloads the published 0.2.3 installer and verifies the SHA-256 pinned in [upgrade-baseline.json](../.github/upgrade-baseline.json). It initializes 0.2.3, seeds a saved preference and received file, upgrades to 0.3.3, and launches the upgraded application before checking its version, settings, received file, directory, and registry scope. The old release supports only AllUsers. A separate CurrentUser reinstall checks scope preservation using the same argument generator as the app; that scope test also runs in PR CI. These are separate checks: a same-version reinstall is not evidence of an upgrade between versions. Installer diagnostics are uploaded even when a release check fails. Update the baseline version, asset URL, SHA-256, and supported scope together when selecting a newer baseline for a future release.
+Stable releases are built, verified, and published manually. Pushing a `v*` tag does not run a release workflow. PR CI continues to build and test development installers; its artifacts are separate from the manually prepared release assets.
 
-After all checks pass, the workflow creates a draft GitHub Release, attaches `TransferCove-Setup-X.Y.Z.exe` and its `TransferCove-Setup-X.Y.Z.exe.sha256` checksum, then publishes the release. If asset upload or publication fails, the release remains a draft and is not offered by the updater. GitHub-generated release notes are shown in the app. The workflow uses the repository `GITHUB_TOKEN`; only the release job has `contents: write` permission.
+Build from the final tagged `main` commit using the local verification commands below. Run the Python checks, verify the Flet bundle, and smoke-test the installer in both installation scopes. Use the previous-release upgrade test below to check preservation of settings and received files. Update [upgrade-baseline.json](../.github/upgrade-baseline.json) when selecting a newer baseline.
+
+The installer build script produces `TransferCove-Setup-X.Y.Z.exe` and `TransferCove-Setup-X.Y.Z.exe.sha256`. The checksum contains the SHA-256 hash and installer filename. Create a draft GitHub Release for the matching `vX.Y.Z` tag, attach both files, and add release notes. Verify the version and attachments before publishing the draft as a stable release. Drafts and prereleases are not offered by the updater. Generate the checksum from the final installer again if the binary changes, including after signing.
 
 The packaged Windows app checks published stable releases in the background at startup, no more than once per 24 hours. Users can run **Settings → About this app → Check for updates** at any time. The app selects the highest stable semantic version, requires the matching installer and checksum assets, and verifies the installer before offering to install it. The user confirms before TransferCove closes and starts the normal interactive installer. GitHub/network failures and missing assets appear as status messages; they do not prevent app use. Update checks run outside the UI event loop.
 
@@ -36,13 +40,21 @@ After confirmation, the updater verifies SHA-256 again while holding a Windows f
 
 ### Versioning and release procedure
 
-Ordinary feature and fix PRs target `dev`; they do not each need a version increase. Increase the version once while preparing a release, and include that change in the release PR from `dev` to `main`. The current project version is **0.3.3**. Before 1.0, this project uses PATCH increments for fixes and MINOR increments for new functionality; see [Semantic Versioning](https://semver.org/).
+Windows Setup requires Windows 10 or newer. Both direct compilation and the build script compare the project version in `pyproject.toml` against the first three numeric version components of the packaged EXE. The fourth component is the Flutter build number. Compilation stops if the project and bundled versions differ.
 
-Keep `pyproject.toml`, `AppConfig.version`, `.env.example`, and the README version in sync. Local `.env` overrides such as `APP__VERSION` should also be updated when running from source. After merging the release PR, create the matching `v0.3.3` tag on the final `main` commit and push that tag. Merging alone does not publish a release; the tag push starts the release workflow. Published versions and tags must not be reused for changed binaries.
+During release preparation, run `python tools/record_windows_payload.py build/windows` on the verified final bundle and commit the updated inventory in `installer/windows/released-payload.txt`. It contains SHA-256 hashes from the published 0.2.3, 0.3.2 and 0.3.3 installers and accumulates hashes when files change. Keep historical entries so users can skip releases. Setup includes only retired paths in its cleanup list. It checks file contents before removal, preserves unfamiliar content, skips reparse points and removes directories only when empty.
+
+Setup compares the first three numeric components of the registered version and installed EXE. It accepts legacy Flutter versions such as `0.3.2+42`. A newer release blocks installation. If the registered version is unreadable, Setup can recover the release from the EXE in the registered directory. Already published installers follow their original behavior.
+
+If a retired file is locked during preparation, Setup identifies it and stops before copying the new bundle (exit code 7). If cleanup fails after copying, Setup logs the affected paths, suppresses application launch and exits with code 20. Close the process holding the file or resolve the reported access error, then run the same installer again. Successful repair returns 0.
+
+Ordinary feature and fix PRs target `dev`. Increase the version once while preparing a release and include that change in the release PR from `dev` to `main`. Before 1.0, this project uses PATCH increments for fixes and MINOR increments for new functionality. See [Semantic Versioning](https://semver.org/).
+
+Read the project version with `poetry version --short`. Keep `pyproject.toml`, `AppConfig.version`, `.env.example`, and the third-party notices in sync. If you set `APP__VERSION` in a local `.env`, update it before running from source. After merging the release PR, tag the final `main` commit with the matching `vX.Y.Z` tag, push it, and follow the manual publication procedure above. Use a new version and tag for any changes to a published binary.
 
 Version 0.3.0 adds stable GitHub release checks, explicit installation confirmation, repeated checksum verification, and preservation of install scope and application data. Existing 0.2.3 users install 0.3.0 manually once; subsequent compatible releases can be offered by the updater.
 
-The release workflow rejects version mismatches and does not publish a Release before installer checks succeed. The generated installer is unsigned; configure Windows code signing before treating these public releases as signed distributions.
+Before publishing, verify that the tag, `pyproject.toml`, application version, and installer version match, and that all local checks succeed. The generated installer is unsigned; configure Windows code signing before treating these public releases as signed distributions.
 
 ## Local verification
 
@@ -51,29 +63,56 @@ Install Poetry 2.5.1 and use Python 3.14. From the repository root:
 ```text
 poetry install --with dev
 poetry check --lock
+poetry run python -m app.core.localization
 poetry run ruff check app tests tools main.py alembic
 poetry run ruff format --check app tests tools main.py alembic
 python -c "from pathlib import Path; Path('test-results').mkdir(parents=True, exist_ok=True)"
 poetry run pytest --junitxml=test-results/pytest.xml
 ```
 
-To build and test the installer on Windows with Visual Studio C++ tools and Inno Setup 6 installed, use PowerShell:
+To build and test the installer on Windows with Visual Studio C++ tools and Inno Setup 6.3 or newer installed, use PowerShell:
 
 ```powershell
 poetry install --with dev,build
+if ($LASTEXITCODE -ne 0) { throw 'Cannot install build dependencies' }
 poetry run python tools/export_flet_constraints.py --output test-results/flet-runtime-constraints.txt
+if ($LASTEXITCODE -ne 0) { throw 'Cannot export Poetry runtime constraints' }
+$version = poetry version --short
+if ($LASTEXITCODE -ne 0) { throw 'Cannot read project version' }
 $env:PIP_CONSTRAINT = (Resolve-Path test-results/flet-runtime-constraints.txt).Path
-poetry run flet build windows --yes --no-rich-output --python-version 3.14 --build-version (poetry version --short)
-Remove-Item Env:PIP_CONSTRAINT
+try {
+    poetry run flet build windows --yes --no-rich-output --python-version 3.14 --build-version $version
+    if ($LASTEXITCODE -ne 0) { throw 'Flet build failed' }
+}
+finally {
+    Remove-Item Env:PIP_CONSTRAINT
+}
 poetry run python tools/verify_flet_bundle.py --site-packages build/site-packages
-./.github/scripts/build-installer.ps1 -InstallerName TransferCove-local-test
-./.github/scripts/smoke-installer.ps1 -InstallerPath dist/installer/TransferCove-local-test.exe -InstallMode CurrentUser -TestUpgradePreservesData
-./.github/scripts/smoke-installer.ps1 -InstallerPath dist/installer/TransferCove-local-test.exe -InstallMode AllUsers
+if ($LASTEXITCODE -ne 0) { throw 'Packaged dependencies differ from poetry.lock' }
+poetry run python tools/verify_locale_bundle.py
+if ($LASTEXITCODE -ne 0) { throw 'Packaged locale validation failed' }
+./.github/scripts/build-installer.ps1
+```
+
+The installer script defaults to the machine-wide Inno Setup 6 path. If you installed Inno Setup elsewhere, pass the actual compiler path. For example, for a machine-wide Inno Setup 7 installation, replace the last command with:
+
+```powershell
+./.github/scripts/build-installer.ps1 -CompilerPath "$env:ProgramFiles\Inno Setup 7\ISCC.exe"
+```
+
+From Command Prompt, run `powershell -NoProfile` first, then use the commands above. You can also compile [`TransferCove.iss`](../installer/windows/TransferCove.iss) in the Inno Setup GUI after building the Flet bundle. Use the PowerShell script to generate the release checksum alongside the installer.
+
+With `$version` set as above, run the smoke tests:
+
+```powershell
+$installer = "dist/installer/TransferCove-Setup-$version.exe"
+./.github/scripts/smoke-installer.ps1 -InstallerPath $installer -InstallMode CurrentUser -TestUpgradePreservesData
+./.github/scripts/smoke-installer.ps1 -InstallerPath $installer -InstallMode AllUsers
 ```
 
 Run PowerShell as administrator for the `/ALLUSERS` check. If the local PowerShell execution policy blocks scripts, invoke them through `powershell -NoProfile -ExecutionPolicy Bypass -File <script-path> <arguments>`. This applies only to that process. Use a clean Windows account or runner for installer smoke tests; the script refuses to run while TransferCove is open or an existing per-user or machine-wide installation is registered.
 
-To exercise the real version transition on a clean runner, first download and verify the baseline using `.github/upgrade-baseline.json`, then pass `-PreviousInstallerPath <verified-baseline.exe> -PreviousVersion 0.2.3 -ExpectedVersion 0.3.3 -InstallMode AllUsers` to `smoke-installer.ps1` along with the candidate `-InstallerPath`. Equal or decreasing version transitions are rejected. Use `-PythonPath <python.exe>` if Python 3.14 is not on PATH.
+To test an upgrade on a clean runner, download the installer specified in [`upgrade-baseline.json`](../.github/upgrade-baseline.json) and verify its SHA-256. Pass the verified installer as `-PreviousInstallerPath` and the baseline version and install mode as `-PreviousVersion` and `-InstallMode`. Pass the candidate as `-InstallerPath` and its version as `-ExpectedVersion $version`. The candidate must be newer than the baseline. Use `-PythonPath <python.exe>` if Python 3.14 is unavailable on PATH.
 
 After changing build/dev dependencies, run `poetry lock` and commit `pyproject.toml` and `poetry.lock` together. Flet CLI's version in the optional `build` group should match the runtime Flet version in the lock file.
 

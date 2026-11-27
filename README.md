@@ -1,269 +1,113 @@
-<div align="center">
+# TransferCove
 
-<img src="docs/images/banner.svg" width="100%" alt="TransferCove — your files, your network">
+![TransferCove banner](docs/images/banner.svg)
 
-<br>
+TransferCove receives files from phones, tablets, and other computers over your local network. The receiving computer runs the desktop app. Senders open the upload page in their browser using a link or QR code.
 
-**Local file transfers with a desktop control panel and a browser upload page.**
-
-The computer receives files. A phone, tablet, or another computer sends them from a browser.
-
-[Features](#features) · [Preview](#preview) · [Quick start](#quick-start) · [Connect another device](#connection) · [Development](#development)
-
-<br>
-
-![Version](https://img.shields.io/badge/version-0.3.3-1f8f55?style=flat-square)
-![Python](https://img.shields.io/badge/python-3.14%2B-3776AB?style=flat-square&logo=python&logoColor=white)
-![License](https://img.shields.io/badge/license-MIT-111827?style=flat-square)
-
-</div>
-
-<br>
+[Download for Windows](https://github.com/AlexZha-dev/transfercove/releases/latest) · [Send files](#send-files) · [Run from source](#run-from-source) · [Build the Windows installer](#build-the-windows-installer)
 
 > [!WARNING]
-> **No encryption or authentication:** TransferCove sends files over plain HTTP. Use it only inside a trusted, verified local network. Do not expose the server to the public internet or an untrusted Wi-Fi network.
+> TransferCove uses plain HTTP without authentication. Any device that can reach the server can upload files. Use TransferCove only on a trusted local network and keep the server off the public internet.
 
-<a id="features"></a>
+## Install on Windows
 
-## Everything you need for local file transfers
+1. Open the [latest GitHub Release](https://github.com/AlexZha-dev/transfercove/releases/latest).
+2. Under **Assets**, download the `TransferCove-Setup-X.Y.Z.exe` file for that release.
+3. Run the installer and open **TransferCove** from the Start menu.
 
-| On the desktop | In the browser | Inside your network |
-| :--- | :--- | :--- |
-| Start and stop the server with one click | Drag and drop or select multiple files | Upload directly to the receiving computer |
-| See server status, address, port, and save location | Track the queue, per-file progress, and total speed | Store files on disk with metadata in SQLite |
-| Configure connection, storage, and auto-start behavior | Stop an active upload or cancel the queue | Work without cloud storage |
+The installer is unsigned and targets x64-compatible systems running Windows 10 or later. The installed app includes its runtime. To check for stable updates, open **Settings → About this app → Check for updates**. TransferCove verifies the downloaded installer's SHA-256 checksum and asks before launching Setup.
 
-The dark green interface adapts to the window size. The sending device only needs a browser — there is no app to install on it.
+## Send files
 
-<a id="preview"></a>
+1. Connect the receiving computer and sending device to the same trusted local network.
+2. Open TransferCove and acknowledge the first-run security notice. If the dashboard shows `127.0.0.1` and you are sending from another device, select **Settings → Connection → Use current LAN address** and save.
+3. Select **Start server** on the dashboard.
+4. Select **Show QR code** or **Copy link**, then open that address on the sending device. To upload from the receiving computer, select **Open upload page**.
+5. Add files and select **Start upload**. The browser shows per-file progress and sends the queue one file at a time.
+6. Find the received files in the directory shown on the dashboard. Change it under **Settings → Storage**. Select **Stop server** when finished.
 
-## One visual language. Two interfaces.
+TransferCove keeps original file names where possible, replaces unsafe characters, and adds a numeric suffix to duplicate names. Received files stay on disk without an upload history.
 
-The desktop app manages the receiver. Any modern browser can act as the sender.
+### Connection and storage defaults
 
-<div align="center">
-  <p>
-    <a href="docs/images/dashboard.png"><img src="docs/images/dashboard.png" width="900" alt="TransferCove dashboard with a running server"></a><br>
-    <strong>Dashboard</strong><br><sub>Control the receiver</sub>
-  </p>
-  <p>
-    <a href="docs/images/settings.png"><img src="docs/images/settings.png" width="900" alt="TransferCove settings page"></a><br>
-    <strong>Settings</strong><br><sub>Shape your workflow</sub>
-  </p>
-  <p>
-    <a href="docs/images/upload.png"><img src="docs/images/upload.png" width="900" alt="TransferCove browser upload page with a file queue"></a><br>
-    <strong>Upload page</strong><br><sub>Send from any browser</sub>
-  </p>
-</div>
+| Setting | Default behavior |
+| --- | --- |
+| Desktop bind host | On first launch, TransferCove tries to select a private LAN IPv4 address and falls back to `127.0.0.1` if detection fails. |
+| Port | `8000` |
+| Storage directory | `.data/files` under the project directory when running from source, or under the Flet application data directory when running the Windows bundle. |
+| Server startup | Start manually from the dashboard. Automatic startup is available in desktop settings. |
 
-<p align="center"><sub>Click any screenshot to open the full-size image. Screenshots were captured in an isolated demo environment with a sample upload queue.</sub></p>
+If the receiver changes networks, use **Settings → Connection → Use current LAN address** and save. The loopback address `127.0.0.1` works only on the receiving computer. If another device cannot connect, check that the receiving computer's firewall allows connections to the configured port on the private network.
 
-<a id="quick-start"></a>
+### Languages
 
-## Quick start
+The desktop app and upload page support English, Spanish, Brazilian Portuguese, German, French, Russian, and Ukrainian. The desktop app saves its language in settings. The upload page starts with the browser's preferred supported language and remembers its own selection.
 
-You need **Python 3.14+** and **Poetry**. Clone or download the project, then open a terminal in its directory.
+## Preview
 
-```bash
-poetry install
+| Desktop dashboard | Browser upload page |
+| --- | --- |
+| [![Desktop dashboard with server controls and connection details](docs/images/dashboard.png)](docs/images/dashboard.png) | [![Browser upload page with a file queue and transfer progress](docs/images/upload.png)](docs/images/upload.png) |
+
+[Desktop settings screenshot](docs/images/settings.png) · [Mobile upload screenshot](docs/images/upload-mobile.png)
+
+## Run from source
+
+Use Python 3.14 and Poetry. From a clone of the repository, run:
+
+```text
+poetry install --with dev
 poetry run python main.py
 ```
 
-Open **Dashboard → Start server**, then choose **Open upload page**. By default, the upload page is available on the receiving computer at `http://127.0.0.1:8000/`.
+[.env.example](.env.example) documents optional environment variables. Copy it to `.env` to provide initial desktop defaults. To let the desktop detect your LAN address, leave `UVICORN__HOST` unset. To restrict a fresh desktop configuration to the receiving computer, set `UVICORN__HOST=127.0.0.1` before the first launch.
 
-Desktop preferences are stored between launches in a separate settings database. Receiving files does not require a history database. On startup, either server attempts to remove old file-history records from an existing local SQLite database; a cleanup failure is logged and does not prevent uploads. New installations do not create `files.db`.
+The desktop app persists its preferences in SQLite. A source run stores them at `.flet-data/data/desktop-settings.db` by default. Saved connection, storage, upload limits, and desktop preferences take precedence after setup. Saving a language-only change leaves a running server active. Other settings changes restart it.
 
-<a id="connection"></a>
+### Standalone server
 
-## Send from another device
+Run the same upload page and API without opening the desktop:
 
-1. Connect the devices to the same local network.
-2. In **Settings → Connection**, click **Use current LAN address** and save the settings. The detected IPv4 address is inserted automatically.
-3. Start the server. The dashboard shows the shareable address and provides **Copy link** and **QR code** actions.
-4. On the other device, scan the QR code or open the copied link.
-5. Add files and select **Start upload**. They will appear in the folder configured under **Storage**.
-
-`0.0.0.0` is a server bind address, not an address to enter in a browser. `127.0.0.1` is reachable only from the receiving computer itself. If the connection fails, allow incoming connections to the selected port in the firewall for your private network. If the computer changes networks, use **Use current LAN address** again.
-
-### Available settings
-
-| Section | Controls |
-| :--- | :--- |
-| Connection | Bind host, automatic LAN address detection, port, and reload for a separately launched server |
-| Storage | Destination folder for received files |
-| Desktop | Language preference, automatic server start, and browser opening behavior |
-| About this app | Application title, description, version, and debug state — read-only information |
-
-Saving settings restarts a running server. The server embedded in the desktop app always runs without reload; the reload option applies when the server is launched separately.
-
-<details>
-<summary><strong>Environment variables and `.env`</strong></summary>
-
-The `.env` file is optional. If you do not have one yet, copy [`.env.example`](.env.example):
-
-```powershell
-# Windows PowerShell
-Copy-Item .env.example .env
-```
-
-```bash
-# macOS / Linux
-cp .env.example .env
-```
-
-Important defaults:
-
-```dotenv
-UVICORN__HOST=127.0.0.1
-UVICORN__PORT=8000
-TRANSMITTER__STORAGE_DIR=.data/files
-# Legacy history cleanup only; not required for uploads
-TRANSMITTER__DATABASE_URL=sqlite+aiosqlite:///./.data/files.db
-DESKTOP__AUTO_START=False
-DESKTOP__OPEN_BROWSER=True
-```
-
-The desktop app uses `.env` as its initial configuration, then loads saved preferences from its SQLite settings database. On Windows builds, Flet stores application data under `%APPDATA%\TransferCove\data`; the first launch after the storage-path change copies data from the old `Your Company\TransferCove` location without overwriting newer files. When running from source without `FLET_APP_STORAGE_DATA`, the desktop settings database is stored under `.flet-data/data/desktop-settings.db`. The standalone web server reads its configuration from `.env` and environment variables.
-
-`APP__*` variables describe the application and are intentionally not editable through the interface.
-
-</details>
-
-<a id="development"></a>
-
-## Development
-
-### Run the web server without the desktop window
-
-```bash
+```text
 poetry run python -m app.server_start_up
 ```
 
-Once running, these endpoints are available:
+The standalone server reads environment variables and `.env` independently of desktop settings. With the defaults, open `http://127.0.0.1:8000/` for uploads, `/health` for the health check, or `/docs` for the interactive FastAPI reference. To accept connections from another device, set `UVICORN__HOST` to the receiver's private LAN address and restart the server.
 
-| Endpoint | Purpose |
-| :--- | :--- |
-| `/` | Browser upload page |
-| `/health` | Server health check |
-| `/docs` | Interactive FastAPI documentation |
-| `POST /v1/files` | Upload one file using the multipart `file` field |
+`POST /v1/files` accepts one multipart file field named `file`. The file listing, download, and delete routes are placeholders.
 
-Upload limits are configured in desktop settings and apply to each receiving server: by default one file may be up to 1024 MiB, two uploads may run simultaneously, 512 MiB of free disk space is reserved, and an upload times out after 60 seconds without incoming data. Each request accepts one file; the browser sends multiple selected files sequentially. A multipart request also has 64 KiB of overhead available for headers and boundaries, and part headers are separately limited by the multipart parser.
+| Upload limit | Default |
+| --- | --- |
+| Maximum file size | 1024 MiB |
+| Concurrent uploads per server | 2 |
+| Minimum free disk space reserve | 512 MiB |
+| Timeout without incoming data | 60 seconds |
 
-Free-space checks cover both the system temporary directory and the destination. Checks account for the whole buffered file when it first spills from memory to disk. Each server instance serializes its disk checks, writes, and buffer flushes so its uploads do not spend the same available space concurrently. This is a best-effort reserve: other processes and server instances can still consume disk space. A file is published only after the complete multipart message is received. Rejected, timed-out, and cancelled requests close their temporary files and release their upload slot; cancellation waits for any in-flight disk write to finish before cleanup.
+Change these limits in **Settings → Upload limits** for the desktop server or via the `UPLOAD_LIMITS__*` variables in [.env.example](.env.example) for the standalone server. On Unix, the destination filesystem must support hard links to publish completed uploads without replacing existing files.
 
-For the standalone server, use the `UPLOAD_LIMITS__MAX_FILE_MIB`, `UPLOAD_LIMITS__MAX_CONCURRENT`, `UPLOAD_LIMITS__RESERVE_MIB`, and `UPLOAD_LIMITS__IDLE_TIMEOUT_SECONDS` variables shown in `.env.example`. Desktop settings are saved separately and take precedence after initial setup.
+New installations have no file-history database. When a server starts, it attempts to remove obsolete history records from an existing legacy SQLite database while leaving received files on disk. Files saved under UUID names stay under those names.
 
-Upload failures return JSON with a string `detail` field, and the browser shows a corresponding error:
+## Development
 
-| Status | Meaning |
-| :--- | :--- |
-| `400` | Malformed or incomplete multipart request, or too many parts |
-| `408` | No data arrived within the inactivity timeout |
-| `413` | File or request exceeds the size limit |
-| `422` | Expected exactly one multipart file field named `file` |
-| `429` | All simultaneous upload slots are occupied; retry later |
-| `507` | Insufficient disk space, or available space could not be checked |
-
-The timeout measures inactivity, not total upload duration. A slow client that keeps sending data can continue occupying a slot; the receiver can stop the server manually. Transfer-rate throttling, per-client request-rate limits, and a total upload deadline are deferred follow-ups to issue #7 for this personal, manually enabled receiver. They are not enforced by the current limits.
-
-New uploads are saved with their original file names where possible. Unsafe characters are replaced, and duplicate names receive a numbered suffix without replacing existing files. Upload history is not stored in the database. Automatic cleanup deletes old file-history records when the legacy SQLite database is accessible; if cleanup fails, it is retried on the next start. Previously uploaded UUID-named files remain on disk, but their original names cannot be recovered from deleted records. Non-SQLite legacy databases require a manual Alembic migration. On Unix, the destination filesystem must support hard links so that completed uploads can be published without replacing existing files. The list, download, and delete API endpoints are currently placeholders.
-
-### Run the test suite
-
-The project uses `pytest` for unit and integration tests. The suite covers configuration validation, SQLite migrations, settings persistence, file-storage cleanup, the upload service, and the public FastAPI endpoints.
-
-```bash
+```text
+poetry check --lock
+poetry run python -m app.core.localization
+poetry run ruff check app tests tools main.py alembic
+poetry run ruff format --check app tests tools main.py alembic
 poetry run pytest
 ```
 
-The tests create temporary databases and storage directories, so they do not modify `.data/` or the local settings database.
+- Desktop entry point and views live in [`main.py`](main.py) and [`app/view/`](app/view/).
+- The browser interface lives in [`app/static/`](app/static/) and the HTTP endpoints in [`app/routes/`](app/routes/).
+- Language catalogs live in [`app/locales/`](app/locales/). See the [translation guide](docs/translations.md).
+- GitHub Actions runs tests and lint on Windows and Ubuntu for pull requests. The Windows job also builds and smoke-tests a development installer. See the [CI guide](docs/ci.md).
 
-### Automated pull request checks and development builds
+### Build the Windows installer
 
-GitHub Actions runs dependency review, linting, formatting checks, and the full test suite on Windows and Linux only for pull requests. The tests include launching the standalone upload server, checking its HTTP endpoints, and verifying an uploaded file. The Windows build constrains Flet's packaged Python dependencies to `poetry.lock` and verifies the generated bundle against the lock file.
+Build on Windows with the Visual Studio **Desktop development with C++** workload and Inno Setup 6.3 or newer. See the [Flet Windows prerequisites](https://flet.dev/docs/publish/windows/) and the [local build and verification commands](docs/ci.md#local-verification).
 
-After the checks pass, CI builds the Windows app and installer, silently installs it in temporary directories as both the current user and all users, and verifies desktop initialization and clean uninstallation. Pull requests also receive dependency review, and Dependabot proposes weekly dependency and workflow updates. Verified installers are available in the workflow run's **Artifacts** section as `TransferCove-test-<commit-sha>`. See [the CI guide](docs/ci.md) for local commands, diagnostics, and required PR checks.
-
-Stable Windows releases use the separate tag-triggered workflow. Publishing a `vX.Y.Z` tag builds and smoke-tests the installer, checks that the tag and application version match `pyproject.toml`, and publishes the installer with a SHA-256 checksum and generated release notes. The packaged Windows app checks GitHub Releases in the background at most once every 24 hours; **Settings → About this app** also has a manual check. Updates are downloaded only from stable releases, verified against the published checksum, and installed only after confirmation. Network failures do not prevent normal app use. See the [release and update guide](docs/ci.md#stable-releases-and-desktop-updates).
-
-### Project structure
-
-```text
-app/
-├── view/          # Flet desktop screens
-├── controller/    # UI, settings, and server coordination
-├── server/        # Embedded FastAPI server lifecycle
-├── static/        # Browser upload page: HTML, CSS, and JavaScript
-├── routes/        # HTTP routes
-├── services/      # File uploads and settings operations
-├── repository/    # Data access
-├── models/        # SQLAlchemy models
-└── core/          # Configuration, database, and shared theme
-assets/            # Shared SVG, PNG, ICO, and favicon assets
-alembic/           # Database migrations
-docs/images/       # Banner and interface screenshots
-tools/             # Brand asset export tools
-main.py            # Flet build entry point
-```
-
-### Icon assets and Windows builds
-
-The source mark is [`assets/icon.svg`](assets/icon.svg). The same visual identity is used by the desktop app and the browser page. The repository includes a six-size ICO for Windows, a 1024 × 1024 PNG for Flet builds, SVG and favicon files for browsers, and an Apple Touch Icon for home-screen shortcuts.
-
-After changing the SVG, regenerate the raster assets with:
-
-```bash
-poetry run python -m pip install playwright
-poetry run python -m playwright install chromium
-poetry run python tools/export_brand.py
-```
-
-Build the Windows desktop package on Windows:
-
-```bash
-poetry run flet build windows --yes --build-version 0.3.3
-```
-
-Flet reads the application icon from `assets/icon.png`; the build entry point, artifact name, and local-data exclusions are configured in `pyproject.toml`. A Windows build also requires Flutter and the C++ desktop tools from Visual Studio. See the [Flet Windows publishing guide](https://flet.dev/docs/publish/windows/) for the platform prerequisites.
-
-### Windows installer and license notices
-
-The repository includes an Inno Setup script at [`installer/windows/TransferCove.iss`](installer/windows/TransferCove.iss). The build script reads the version from `pyproject.toml` and passes it to Inno Setup. After building the Flet application, run these commands from PowerShell to create the installer under `dist/installer/`:
-
-```text
-poetry install --with dev,build
-poetry run flet build windows --yes --python-version 3.14 --build-version (poetry version --short)
-./.github/scripts/build-installer.ps1
-```
-
-Opening the Inno Setup script directly also works: it reads the version from the built executable when no version override is supplied.
-
-The installer displays the MIT license, installs [`LICENSE`](LICENSE) and [`THIRD-PARTY-NOTICES.txt`](THIRD-PARTY-NOTICES.txt), and preserves the dependency license metadata shipped in the Flet bundle. Release installers are currently unsigned; signing remains outside the repository so certificates and passwords are never committed. If dependency versions change during a rebuild, update `THIRD-PARTY-NOTICES.txt` from the final bundle before publishing the installer.
-
-### Current project boundaries
-
-- File uploads to the receiving computer are implemented. Listing, downloading, and deleting files through the API remain placeholders.
-- Full localization is not connected yet: the interface is currently English, while the language selector stores a preference for future localization.
-- The server uses plain HTTP without authentication. The application is intended for a trusted local network; public deployment requires separate access control and HTTPS configuration.
-
-<a id="license"></a>
+The Flet bundle is written to `build/windows/`. The installer script reads the version from [`pyproject.toml`](pyproject.toml), verifies that the bundle matches, and writes `TransferCove-Setup-X.Y.Z.exe` and its `.exe.sha256` file under `dist/installer/`. See the [release guide](docs/ci.md#stable-releases-and-desktop-updates) for publishing.
 
 ## License
 
-TransferCove is open-source software licensed under the [MIT License](LICENSE).
-You may use, modify, and redistribute the project, including in commercial products,
-provided that the copyright and license notices are preserved.
-This license covers the project code and original assets in this repository; third-party
-dependencies remain under their own licenses.
-
-<br>
-
-<div align="center">
-
-<img src="assets/icon.svg" width="44" height="44" alt="">
-
-**TransferCove**<br>
-<sub>Your devices. One connection.</sub>
-
-</div>
+TransferCove is available under the [MIT License](LICENSE). Packaged components retain their upstream licenses and attributions. See the [third-party notices](THIRD-PARTY-NOTICES.txt).

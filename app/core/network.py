@@ -69,8 +69,11 @@ def _hostname_ipv4_addresses() -> list[str]:
 def get_lan_ipv4() -> str | None:
     """Return the best available private IPv4 address for sharing locally."""
 
-    candidates = [_probe_default_route(), *_hostname_ipv4_addresses()]
-    for candidate in candidates:
-        if candidate and is_lan_ipv4(candidate):
+    preferred = _probe_default_route()
+    if preferred and is_lan_ipv4(preferred):
+        return preferred
+
+    for candidate in _hostname_ipv4_addresses():
+        if is_lan_ipv4(candidate):
             return candidate
     return None

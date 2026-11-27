@@ -73,7 +73,7 @@ jobs:
       pull-requests: read
     steps:
       - name: Check changed dependencies for known vulnerabilities
-        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        uses: actions/dependency-review-action@bbc44d14a204704ccc493733616cd1e93a0321ec # v5.0.1
         with:
           fail-on-severity: high
 
@@ -124,12 +124,25 @@ jobs:
       - name: Build installer
         id: installer
         run: ./.github/scripts/build-installer.ps1 -InstallerName "TransferCove-test-$env:GITHUB_SHA"
-      - name: Install and launch the application
+      - name: Verify current-user installation, downgrade refusal and repair
+        env:
+          INSTALLER_PATH: ${{ steps.installer.outputs.installer-path }}
+        run: ./.github/scripts/smoke-installer.ps1 -InstallerPath $env:INSTALLER_PATH -InstallMode CurrentUser -TestUpgradePreservesData -LogDirectory test-results/installer/current-user
+      - name: Verify a clean all-users installation
+        env:
+          INSTALLER_PATH: ${{ steps.installer.outputs.installer-path }}
+        run: ./.github/scripts/smoke-installer.ps1 -InstallerPath $env:INSTALLER_PATH -InstallMode AllUsers -LogDirectory test-results/installer/all-users-clean
+      - name: Upgrade the published baseline and verify preserved files
         env:
           INSTALLER_PATH: ${{ steps.installer.outputs.installer-path }}
         run: |
-          ./.github/scripts/smoke-installer.ps1 -InstallerPath $env:INSTALLER_PATH -InstallMode CurrentUser -TestUpgradePreservesData -LogDirectory test-results/installer/current-user
-          ./.github/scripts/smoke-installer.ps1 -InstallerPath $env:INSTALLER_PATH -InstallMode AllUsers -LogDirectory test-results/installer/all-users
+          $baseline = Get-Content .github/upgrade-baseline.json -Raw | ConvertFrom-Json
+          $previous = Join-Path $env:RUNNER_TEMP 'TransferCove-baseline.exe'
+          Invoke-WebRequest -Uri $baseline.installer_url -OutFile $previous
+          if ((Get-FileHash -LiteralPath $previous -Algorithm SHA256).Hash -ine $baseline.sha256) {
+            throw 'Previous release installer checksum mismatch'
+          }
+          ./.github/scripts/smoke-installer.ps1 -InstallerPath $env:INSTALLER_PATH -InstallMode $baseline.install_mode -PreviousInstallerPath $previous -PreviousVersion $baseline.version -LogDirectory test-results/installer/baseline-upgrade
       - name: Upload verified installer
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

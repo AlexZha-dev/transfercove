@@ -28,7 +28,9 @@ def test_upload_page_and_static_assets_are_available(client: TestClient) -> None
     assert "XMLHttpRequest" in script.text
 
 
-def test_upload_endpoint_persists_file_and_metadata(client: TestClient) -> None:
+def test_upload_endpoint_saves_file_without_creating_history_database(
+    client: TestClient,
+) -> None:
     response = client.post(
         "/v1/files",
         files={"file": ("greeting.txt", b"hello from pytest", "text/plain")},
@@ -47,6 +49,7 @@ def test_upload_endpoint_persists_file_and_metadata(client: TestClient) -> None:
     assert len(stored_files) == 1
     assert stored_files[0].suffix == ".txt"
     assert stored_files[0].read_bytes() == b"hello from pytest"
+    assert not (storage_dir.parent / "files.db").exists()
 
 
 def test_upload_endpoint_requires_a_file(client: TestClient) -> None:
