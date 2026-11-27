@@ -2,6 +2,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+from sqlalchemy import text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -44,13 +45,20 @@ class Database:
             yield session
 
     @asynccontextmanager
-    async def transaction(self) -> AsyncIterator[AsyncSession]:
+    async def transaction(
+        self, *, immediate: bool = False
+    ) -> AsyncIterator[AsyncSession]:
         async with self.session_factory() as session:
             async with session.begin():
+                if immediate:
+                    await session.execute(text("BEGIN IMMEDIATE"))
                 yield session
 
     async def create_table(self, table: Table) -> None:
         async with self.engine.begin() as connection:
+            if connection.dialect.name == "sqlite":
+                # Serialize the existence check and CREATE across desktop processes.
+                await connection.exec_driver_sql("BEGIN IMMEDIATE")
             await connection.run_sync(table.create, checkfirst=True)
 
     async def dispose(self) -> None:

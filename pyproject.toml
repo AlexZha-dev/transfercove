@@ -11,12 +11,12 @@ dependencies = [
     "fastapi (>=0.141.1,<0.142.0)",
 
     "pydantic (>=2.13.5,<3.0.0)",
-    "pydantic-settings (>=2.16.2,<3.0.0)",
+    "pydantic-settings (>=2.16.3,<3.0.0)",
 
     "uvicorn (>=0.53.0,<0.54.0)",
     "sqlalchemy (>=2.1.9,<3.0.0)",
     "greenlet (>=3.5.0,<4.0.0)",
-    "alembic (>=1.20.0,<2.0.0)",
+    "alembic (>=1.20.1,<2.0.0)",
     "aiosqlite (>=0.22.1,<0.23.0)",
     "python-multipart (>=0.0.32,<0.0.33)",
     "qrcode (>=8.2,<9.0)",
@@ -35,7 +35,7 @@ include = [{ path = "assets", format = ["sdist", "wheel"] }]
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=9.1.1,<10.0.0"
-ruff = "==0.17.4"
+ruff = "==0.17.5"
 
 
 [tool.poetry.group.build]
@@ -50,6 +50,17 @@ artifact = "TransferCove"
 company = ""
 copyright = "Copyright (c) 2026 AlexZha-dev"
 icon_background = "#07100C"
+
+[tool.flet.windows.boot_screen]
+name = "flet"
+
+[tool.flet.windows.boot_screen.flet]
+theme_mode = "dark"
+bgcolor_dark = "#07100C"
+spinner_color_dark = "#6EF0A0"
+spinner_size = 32
+text_color_dark = "#F1FBF4"
+startup_message = "Starting TransferCove…"
 
 # Flet's build template pins jni 1.0.0, which is incompatible with newer
 # jni_flutter releases. Remove this override when upgrading to a fixed Flet.

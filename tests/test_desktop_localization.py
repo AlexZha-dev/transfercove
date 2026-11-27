@@ -21,6 +21,9 @@ def make_view(monkeypatch, language="en", *, server_started=True):
         last_error=None,
         server_url="http://127.0.0.1:8000/",
         advertised_host="127.0.0.1",
+        settings_store=SimpleNamespace(
+            service=SimpleNamespace(lan_detection_pending=False)
+        ),
         subscribe=Mock(),
         initialize=AsyncMock(),
     )
