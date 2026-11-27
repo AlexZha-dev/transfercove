@@ -175,17 +175,25 @@ def test_installer_build_script_rejects_stale_payload(package, tmp_path, monkeyp
         "-CompilerPath",
         package.compiler,
     ]
-    monkeypatch.delenv("GITHUB_OUTPUT", raising=False)
+    github_output = tmp_path / "github-output"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(github_output))
     stale = run(args)
     assert stale.returncode != 0
     assert "0.3.3" in stale.stdout + stale.stderr
     assert "0.3.4" in stale.stdout + stale.stderr
+    assert not github_output.exists()
     shutil.copyfile(package.versions["0.3.3"], exe)
     valid = run(args)
     assert valid.returncode == 0, valid.stdout + valid.stderr
     output = tmp_path / "dist/installer/TransferCove-Setup-0.3.3.exe"
     assert output.is_file()
-    assert output.with_suffix(".exe.sha256").is_file()
+    digest = hashlib.sha256(output.read_bytes()).hexdigest()
+    assert output.with_suffix(".exe.sha256").read_text(encoding="ascii") == (
+        f"{digest}  {output.name}\n"
+    )
+    key, path = github_output.read_text(encoding="utf-8").strip().split("=", 1)
+    assert key == "installer-path"
+    assert Path(path) == output
     monkeypatch.setenv("TRANSFERCOVE_TEST_INSTALLER", str(output))
     metadata = run(
         [
