@@ -40,7 +40,7 @@ After confirmation, the updater verifies SHA-256 again while holding a Windows f
 
 ### Versioning and release procedure
 
-Windows Setup requires Windows 10 or newer. It reads the release version from the first three numeric version components of the packaged EXE. The fourth component is the Flutter build number. The build fails if the packaged version differs from the Poetry version.
+Windows Setup requires Windows 10 or newer. Both direct compilation and the build script compare the project version in `pyproject.toml` against the first three numeric version components of the packaged EXE. The fourth component is the Flutter build number. Compilation stops if the project and bundled versions differ.
 
 During release preparation, run `python tools/record_windows_payload.py build/windows` on the verified final bundle and commit the updated inventory in `installer/windows/released-payload.txt`. It contains SHA-256 hashes from the published 0.2.3, 0.3.2 and 0.3.3 installers and accumulates hashes when files change. Keep historical entries so users can skip releases. Setup includes only retired paths in its cleanup list. It checks file contents before removal, preserves unfamiliar content, skips reparse points and removes directories only when empty.
 

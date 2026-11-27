@@ -241,7 +241,19 @@ poetry run flet build windows --yes --python-version 3.14 --build-version (poetr
 ./.github/scripts/build-installer.ps1
 ```
 
-Opening the Inno Setup script directly also works: it reads the version from the built executable when no version override is supplied.
+Opening the Inno Setup script directly also works. It checks the project version against the built executable and stops with a rebuild instruction if they differ.
+
+From Command Prompt (cmd.exe), build using the project version and compile only if Flet succeeds:
+
+```cmd
+poetry install --with dev,build
+set "APP_VERSION="
+for /f "delims=" %v in ('poetry version --short') do set "APP_VERSION=%v"
+if not defined APP_VERSION echo Unable to read project version
+if defined APP_VERSION (poetry run flet build windows --yes --python-version 3.14 --build-version %APP_VERSION% && powershell -NoProfile -ExecutionPolicy Bypass -File .github\scripts\build-installer.ps1)
+```
+
+In a batch file, use `%%v` in place of `%v`. For reproducible dependency constraints and release checks, follow the CI guide.
 
 The installer displays the MIT license, installs [`LICENSE`](LICENSE) and [`THIRD-PARTY-NOTICES.txt`](THIRD-PARTY-NOTICES.txt), and preserves the dependency license metadata shipped in the Flet bundle. Release installers are currently unsigned; signing remains outside the repository so certificates and passwords are never committed. If dependency versions change during a rebuild, update `THIRD-PARTY-NOTICES.txt` from the final bundle before publishing the installer.
 

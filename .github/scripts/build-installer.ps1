@@ -28,12 +28,25 @@ try {
         throw "Installer was not generated: $installerPath"
     }
     $checksumPath = "$installerPath.sha256"
-    $hash = (Get-FileHash -LiteralPath $installerPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $stream = [System.IO.File]::OpenRead($installerPath)
+        try {
+            $digest = $sha256.ComputeHash($stream)
+        }
+        finally {
+            $stream.Dispose()
+        }
+    }
+    finally {
+        $sha256.Dispose()
+    }
+    $hash = [System.BitConverter]::ToString($digest).Replace('-', '').ToLowerInvariant()
     [System.IO.File]::WriteAllText($checksumPath, "$hash  $([System.IO.Path]::GetFileName($installerPath))`n", [System.Text.Encoding]::ASCII)
     Write-Output "Installer: $installerPath"
     Write-Output "Checksum: $checksumPath"
     if ($env:GITHUB_OUTPUT) {
-        "installer-path=$installerPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+        [System.IO.File]::AppendAllText($env:GITHUB_OUTPUT, "installer-path=$installerPath`n")
     }
 }
 finally {

@@ -36,6 +36,9 @@ def package(tmp_path_factory):
     if not compiler.exists():
         pytest.skip("Inno Setup compiler unavailable")
     root = tmp_path_factory.mktemp("setup-build")
+    (root / "pyproject.toml").write_text(
+        '[project]\nversion = "0.3.3"\n', encoding="utf-8"
+    )
     source = root / "installer/windows"
     source.mkdir(parents=True)
     bundle = root / "build/windows"
@@ -58,7 +61,7 @@ def package(tmp_path_factory):
 
     # Real PE version resources let the tests vary the EXE independently of HKCU.
     versions = {}
-    for version in ("0.3.2", "0.3.3", "0.3.4"):
+    for version in ("0.3.2", "0.3.3", "0.3.4", "0.3.3.42"):
         stub = root / "version.iss"
         stub.write_text(
             f"[Setup]\nAppName=Fixture\nAppVersion={version}\nVersionInfoVersion={version}\n"
@@ -98,8 +101,110 @@ end;
     return SimpleNamespace(
         setup=compile_script(script, "candidate"),
         versions=versions,
+        root=root,
+        compiler=compiler,
         key=rf"Software\Microsoft\Windows\CurrentVersion\Uninstall\{identity}_is1",
     )
+
+
+@pytest.mark.parametrize(
+    ("project", "binary", "override", "expected"),
+    [
+        ('[project]\nversion = "0.3.3"\n', "0.3.3", None, True),
+        ('[project]\nversion = "0.3.3"\n', "0.3.3.42", None, True),
+        ('[project]\nversion = "0.3.3"\n', "0.3.4", None, False),
+        ('[project]\nversion = "0.3.3"\n', None, None, False),
+        ('[project]\nname = "test"\n', "0.3.3", None, False),
+        ('[project]\nversion = "0.3.x"\n', "0.3.3", None, False),
+        ('[project]\nversion = "0.3.3"\nversion = "0.3.3"\n', "0.3.3", None, False),
+        ('[project]\nversion = "0.3.3"\n', "0.3.3", "0.3.4", False),
+    ],
+)
+def test_compile_checks_project_and_exe_versions(
+    package, tmp_path, project, binary, override, expected
+):
+    shutil.copytree(package.root / "installer", tmp_path / "installer")
+    shutil.copytree(package.root / "assets", tmp_path / "assets")
+    shutil.copyfile(package.root / "LICENSE", tmp_path / "LICENSE")
+    shutil.copyfile(
+        package.root / "THIRD-PARTY-NOTICES.txt", tmp_path / "THIRD-PARTY-NOTICES.txt"
+    )
+    (tmp_path / "pyproject.toml").write_text(project, encoding="utf-8")
+    bundle = tmp_path / "build/windows"
+    bundle.mkdir(parents=True)
+    if binary:
+        shutil.copyfile(package.versions[binary], bundle / "TransferCove.exe")
+    args = [package.compiler, "/Q", f"/O{tmp_path}", "/Fversion-test"]
+    if override:
+        args.append(f"/DMyAppVersion={override}")
+    result = run([*args, tmp_path / "installer/windows/TransferCove.iss"])
+    assert (result.returncode == 0) is expected, result.stdout + result.stderr
+    if binary == "0.3.4":
+        assert "0.3.3" in result.stderr and "0.3.4" in result.stderr
+
+
+def test_installer_build_script_rejects_stale_payload(package, tmp_path, monkeypatch):
+    poetry = shutil.which("poetry")
+    if not poetry:
+        pytest.skip("Poetry unavailable")
+    shutil.copytree(package.root / "installer", tmp_path / "installer")
+    shutil.copytree(package.root / "assets", tmp_path / "assets")
+    shutil.copyfile(package.root / "LICENSE", tmp_path / "LICENSE")
+    shutil.copyfile(
+        package.root / "THIRD-PARTY-NOTICES.txt", tmp_path / "THIRD-PARTY-NOTICES.txt"
+    )
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "transfercove"\nversion = "0.3.3"\n', encoding="utf-8"
+    )
+    scripts = tmp_path / ".github/scripts"
+    scripts.mkdir(parents=True)
+    shutil.copyfile(
+        ROOT / ".github/scripts/build-installer.ps1", scripts / "build-installer.ps1"
+    )
+    bundle = tmp_path / "build/windows"
+    bundle.mkdir(parents=True)
+    exe = bundle / "TransferCove.exe"
+    shutil.copyfile(package.versions["0.3.4"], exe)
+    args = [
+        "powershell",
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        scripts / "build-installer.ps1",
+        "-CompilerPath",
+        package.compiler,
+    ]
+    github_output = tmp_path / "github-output"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(github_output))
+    stale = run(args)
+    assert stale.returncode != 0
+    assert "0.3.3" in stale.stdout + stale.stderr
+    assert "0.3.4" in stale.stdout + stale.stderr
+    assert not github_output.exists()
+    shutil.copyfile(package.versions["0.3.3"], exe)
+    valid = run(args)
+    assert valid.returncode == 0, valid.stdout + valid.stderr
+    output = tmp_path / "dist/installer/TransferCove-Setup-0.3.3.exe"
+    assert output.is_file()
+    digest = hashlib.sha256(output.read_bytes()).hexdigest()
+    assert output.with_suffix(".exe.sha256").read_text(encoding="ascii") == (
+        f"{digest}  {output.name}\n"
+    )
+    key, path = github_output.read_text(encoding="utf-8").strip().split("=", 1)
+    assert key == "installer-path"
+    assert Path(path) == output
+    monkeypatch.setenv("TRANSFERCOVE_TEST_INSTALLER", str(output))
+    metadata = run(
+        [
+            "powershell",
+            "-NoProfile",
+            "-Command",
+            "(Get-Item -LiteralPath $env:TRANSFERCOVE_TEST_INSTALLER).VersionInfo.FileVersion",
+        ]
+    )
+    assert metadata.returncode == 0, metadata.stderr
+    assert metadata.stdout.strip().startswith("0.3.3")
 
 
 @pytest.fixture
